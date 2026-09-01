@@ -17,7 +17,7 @@
   </div>
   <div class="meta">
     検証対象：ETTh1 / ETTh2（1時間粒度・2016年7月〜2018年6月）<br>
-    追加データ：Open-Meteo Historical Weather API（ERA5 再解析）
+    追加データ：Open-Meteo Historical Weather API（モデル指定なし / Best Match）
   </div>
 </div>
 
@@ -30,17 +30,17 @@
       <div class="stat">
         <div class="label">精度の改善幅 / 24時間先</div>
         <div class="value blue">+32<span style="font-size:15pt">%</span></div>
-        <div class="note">24時間先の予測で外気温を入れた学習モデルが「今と同じ温度」と言い張るだけの手法に対して得た改善幅 / 1週間先は +36.1% / 外気温なしでは +0.5%</div>
+        <div class="note">対象時刻の気象8変数を完全に与えたoracle条件での上限改善 / 1週間先 +36.1% / 実予報での性能は未検証</div>
       </div>
       <div class="stat">
         <div class="label">油温を使わない推定 / ETTh2</div>
         <div class="value blue">R² 0.85</div>
-        <div class="note">ETTh2 / 油温センサを一切使わず負荷＋外気温だけで推定した精度 R²=0.854 / 負荷のみでは R²=−0.02 で平均予測と同等</div>
+        <div class="note">ETTh2 / 油温履歴なし・負荷＋外部気象で観測OTを再構成した精度 / 異常ラベルによる検知性能は未検証</div>
       </div>
       <div class="stat">
         <div class="label">外気温と油温の相関</div>
         <div class="value blue">r = 0.97</div>
-        <div class="note">ETTh2 / 外気温と油温の日次相関 / データに含まれる負荷6変数の相関は最大 0.50 / 最も説明力の高い変数が最初から入っていない</div>
+        <div class="note">ETTh2 / 候補地点の気温と油温の日次共変動 / 共通季節性を含み 因果効果や実地点を示す値ではない</div>
       </div>
     </div>
     <div class="cols">
@@ -51,8 +51,8 @@
       <div class="box okbx">
         <h4>クライアントの課題との対応</h4>
         <ul>
-          <li><b>課題① 閾値監視の複雑化</b>：負荷と外気温から正常温度を推定 / ETTh2 で R²=0.854・ETTh1 で −1.66</li>
-          <li><b>課題② 予防保全への移行</b>：1週間先の高温イベント 184件中93件を検知 / 警報は週1.9回</li>
+          <li><b>課題① 閾値監視の複雑化</b>：負荷＋外部気象による正常値推定の候補 / 異常検知性能は未検証</li>
+          <li><b>課題② 予防保全への移行</b>：相対高温の再現率と誤報率の交換関係を探索 / 実イベント警報は未検証</li>
         </ul>
       </div>
       <div class="box">
@@ -81,8 +81,8 @@
       <div class="box accent">
         <h4><span class="tag blue">課題① → タスクA</span>ナウキャスト（同時刻推定）</h4>
         <p><b>問い：</b>油温計を見ずにいま油温が何℃のはずかを当てられるか</p>
-        <p><b>入力：</b>同時刻を含む負荷6変数と外気温 / <u>油温の履歴は一切使わない</u></p>
-        <p><b>課題への対応：</b>負荷と外気温から「この条件での正常温度」を推定 / 固定閾値と違い季節と負荷条件によらず乖離を検出できる</p>
+        <p><b>入力：</b>同時刻を含む負荷6変数と外部気象 / <u>油温の履歴は一切使わない</u></p>
+        <p><b>課題への対応：</b>負荷と外部気象から期待温度を推定 / 異常検知に使う正常値モデルの候補を検証</p>
       </div>
       <div class="box accent">
         <h4><span class="tag blue">課題② → タスクB</span>フォーキャスト（将来予測）</h4>
@@ -93,7 +93,7 @@
     </div>
     <div class="box pale">
       <h4>課題文の但し書きの解釈</h4>
-      <p>「t=Tの油温を予測する際には、t=Tでの特徴量を使用して良い」——この許可で<b>使える入力が増えるのはタスクAだけ</b><br>同時刻の負荷を使えるからこそ「今この瞬間の正常温度」を推定でき 異常検知の基準線が成立する<br>タスクBは時刻tまでの全情報を使うため この許可は入力を何も増やさない<br><b>そこで両タスクを分けて 許可が入力を増やす側とそうでない側を切り分けた</b></p>
+      <p>「t=Tの油温を予測する際には、t=Tでの特徴量を使用して良い」——この許可で<b>使える入力が増えるのはタスクAだけ</b><br>同時刻の負荷を使い 油温履歴なしで期待温度を推定できるかを検証<br>タスクBは時刻tまでの全情報を使うため この許可は入力を何も増やさない<br><b>そこで両タスクを分けて 許可が入力を増やす側とそうでない側を切り分けた</b></p>
     </div>
   </div>
   <div class="footnote">課題文に「不明点は合理的な仮定を置き、明記した上で進める」とあるため 置いた仮定は Appendix に一覧化</div>
@@ -107,9 +107,9 @@
     <div class="fig"><img src="../outputs/figures/fig03_missing_block.png"></div>
     <div class="side">
       <div class="box warnbx">
-        <h4>① 欠測のゼロ埋め（58時間）</h4>
-        <p>2016/12/5 09:00〜12/7 18:00 に負荷6変数が<b>すべて厳密に0</b><br>同区間で油温だけは −4.1〜15.3℃ の範囲で変動を続けている<br>負荷ゼロで油温が動くのは物理的に説明がつかず 実測ではなく埋め値と判断</p>
-        <p><b>対処：</b>該当区間を欠測として扱い線形補間したうえで学習・評価の対象から除外<br>ゼロのまま移動平均に流すと前後数日ぶんの特徴量まで汚染される</p>
+        <h4>① 欠測・計測異常・停止の疑い（58時間）</h4>
+        <p>2016/12/5 09:00〜12/7 18:00 に負荷6変数が<b>すべて厳密に0</b><br>欠測・計測異常・設備停止のいずれかは設備ログがなく確定できない</p>
+        <p><b>対処：</b>疑わしい区間として補間し 当該行を学習・評価から除外<br>補間方法と周辺窓への影響は感度分析が必要</p>
       </div>
       <div class="box warnbx">
         <h4>② 記録分解能の違い</h4>
@@ -167,7 +167,7 @@
       </div>
       <div class="box okbx">
         <h4>ここから立てた仮説</h4>
-        <p>油温 ≒ 外気温 ＋ 負荷による温度上昇 という物理を踏まえると<b>最も説明力が高いはずの変数がデータに入っていない</b><br>日内パターン（早朝に最低・午後に最高）も外気温の形そのもの<br><b>→ 外部データで検証 / p.10</b></p>
+        <p>外気温と負荷が油温へ影響するという物理仮説を置くと<b>外部気象を検証する余地がある</b><br>相関は共通季節性を含み 因果効果や物理分解を示すものではない<br><b>→ 外部データで探索 / p.10</b></p>
       </div>
     </div>
   </div>
@@ -218,7 +218,7 @@
 <!-- 8. 結果: モデル比較 -->
 <div class="slide" data-page="8">
   <div class="chapter">4. 検証結果</div>
-  <div class="message">外気温を入れると<span class="em">全ホライズンで基準線を上回る</span> / 24時間先 +32% / 1週間先 +36%</div>
+  <div class="message">未来の気象8変数を完全に与える<span class="em">oracle条件で改善余地</span> / 24時間先 +32% / 1週間先 +36%</div>
   <div class="body">
     <div class="fig"><img src="../outputs/figures/fig08_model_comparison.png"></div>
     <div class="side">
@@ -238,8 +238,8 @@
       <div class="box warnbx">
         <h4>読み取れること</h4>
         <ul>
-          <li>24時間先の上回り幅は外気温込みで<b>32.3%</b> / 外気温なしでは<b>0.5%</b></li>
-          <li>1週間先は<b>36.1%</b>改善 / 予報を繋げるほど長期で効く</li>
+          <li>24時間先の上回り幅は完全気象込みで<b>32.3%</b> / 外部特徴なしでは<b>0.5%</b></li>
+          <li>1週間先は<b>36.1%</b> / 実予報の誤差を含む性能は未検証</li>
           <li>Ridge・SeasonalNaiveは<b>基準線を大きく下回る</b></li>
         </ul>
       </div>
@@ -291,20 +291,20 @@
 <!-- 10. 発見: 外気温 -->
 <div class="slide" data-page="10">
   <div class="chapter">5. 追加検証</div>
-  <div class="message">油温を最も説明する変数は<span class="em">外気温 r=0.977</span> / <span class="warn">データセットには非収録</span></div>
+  <div class="message">候補地点の気温と油温に<span class="em">強い季節的共変動 r=0.977</span> / 外部気象を探索する根拠</div>
   <div class="body">
     <div class="fig"><img src="../outputs/figures/fig15_weather_relation.png"></div>
   </div>
   <div class="footnote">
-    出典：Open-Meteo Historical Weather API（ERA5 再解析, CC BY 4.0 / Copernicus Climate Change Service）https://open-meteo.com/en/docs/historical-weather-api ／
-    ETDatasetは観測地点を「中国のある省の2地域」としか公開していないため 気候帯を広くとった16都市の気温との整合度で地点を推定 / 整合度は日次相関・季節周期を除いた残差相関・日内パターンの相関の平均 / 選定に使うのは最初の分割の学習期間までで評価期間の油温は見ない / 南京0.919・武漢0.918が同点上位
+    出典：Open-Meteo Historical Weather API（モデル指定なし / Best Match, CC BY 4.0）https://open-meteo.com/en/docs/historical-weather-api ／
+    16候補中で南京系列が僅差の最上位 / 実地点を同定したものではなく 南京は代表気象プロキシとして採用 / 南京0.919・武漢0.918
   </div>
 </div>
 
 <!-- 11. 結果: ナウキャスト -->
 <div class="slide" data-page="11">
   <div class="chapter">課題① 閾値監視の代替</div>
-  <div class="message">外気温の追加で油温を用いない推定は <span class="em">ETTh2 で R²=0.854</span> / ETTh1 では <span class="warn">−1.66</span></div>
+  <div class="message">負荷＋外部気象による正常値推定候補は <span class="em">ETTh2でR²=0.854</span> / 異常検知性能は未検証</div>
   <div class="body col">
     <div class="fig" style="max-height:46mm"><img src="../outputs/figures/fig12_nowcast.png"></div>
     <div class="cols">
@@ -314,13 +314,13 @@
           <tr><th>入力</th><th class="num">ETTh1 MAE</th><th class="num">ETTh2 MAE</th><th class="num">ETTh2 R²</th></tr>
           <tr><td>平均を答えるだけ</td><td class="num">6.76</td><td class="num">10.18</td><td class="num">−1.51</td></tr>
           <tr><td>負荷6変数のみ</td><td class="num">6.01</td><td class="num">6.43</td><td class="num">−0.02</td></tr>
-          <tr class="highlight"><td>負荷＋外気温</td><td class="num">5.10</td><td class="num">2.11</td><td class="num">0.854</td></tr>
+          <tr class="highlight"><td>負荷＋外部気象</td><td class="num">5.10</td><td class="num">2.11</td><td class="num">0.854</td></tr>
         </table>
       </div>
       <div class="box okbx">
         <h4>運用上の意味</h4>
-        <p><b>負荷だけでは平均を答えるのと同じ R²=−0.02 だったものが 外気温を足すと分散の85%を説明できるようになる</b></p>
-        <p>これは「この負荷・この外気温なら油温は何℃が正常か」という基準線が引けることを意味する<br>実測との乖離を監視すれば 固定閾値では不可能な<b>季節・負荷条件によらない異常検知</b>が成立する</p>
+        <p><b>負荷だけではR²=−0.02 / 外部気象を足すと観測OTの分散の85%を再構成</b></p>
+        <p>異常検知に使う期待温度モデルの候補<br>異常ラベル・残差閾値・誤報率・検知遅延による成立性確認が必要</p>
       </div>
       <div class="box warnbx">
         <h4>ETTh1で成立しない理由</h4>
@@ -333,14 +333,14 @@
 <!-- 12. 結果: 指標の逆転 -->
 <div class="slide" data-page="12">
   <div class="chapter">課題② 予防保全への移行</div>
-  <div class="message">MAE最適化は<span class="warn">閾値超過を捉えにくい</span> / 外気温の追加で解消</div>
+  <div class="message">MAE最適化は<span class="warn">閾値超過を捉えにくい</span> / 外部気象の追加で解消</div>
   <div class="body col">
     <div class="cols">
       <div class="box">
         <h4>24時間先の高温イベント検知（ETTh1）</h4>
         <table>
           <tr><th>モデル</th><th class="num">MAE</th><th class="num">再現率</th><th class="num">適合率</th><th class="num">F1</th></tr>
-          <tr><td>LightGBM（外気温なし）</td><td class="num">1.924</td><td class="num"><span class="bad">0.297</span></td><td class="num">0.538</td><td class="num"><span class="bad">0.382</span></td></tr>
+          <tr><td>LightGBM（外部気象なし）</td><td class="num">1.924</td><td class="num"><span class="bad">0.297</span></td><td class="num">0.538</td><td class="num"><span class="bad">0.382</span></td></tr>
           <tr><td>Persistence</td><td class="num">1.933</td><td class="num">0.496</td><td class="num">0.555</td><td class="num">0.524</td></tr>
           <tr><td>SeasonalNaive</td><td class="num">2.967</td><td class="num">0.702</td><td class="num">0.319</td><td class="num">0.439</td></tr>
           <tr class="highlight"><td>LightGBM＋外気温</td><td class="num">1.308</td><td class="num"><span class="good">0.526</span></td><td class="num">0.692</td><td class="num"><span class="good">0.598</span></td></tr>
@@ -349,7 +349,7 @@
       <div class="box warnbx">
         <h4>なぜ逆転するか</h4>
         <p>MAEを最小化する学習では モデルは<b>自信のない場面で平均寄りの無難な値を返す</b>のが最適になる<br>その結果 閾値を超える「尖った予測」が出なくなり 見逃しが640件まで増えた</p>
-        <p>外気温なしのLightGBMはMAEでPersistenceとほぼ同じ（1.924 対 1.933）なのに 再現率は0.496→0.297へ落ちる<br><b>℃単位の誤差が同じでも見逃しは4割増える</b></p>
+        <p>外部気象なしのLightGBMはMAEでPersistenceとほぼ同じ（1.924 対 1.933）なのに 再現率は0.496→0.297へ落ちる<br><b>℃単位の誤差が同じでも見逃しは4割増える</b></p>
       </div>
       <div class="box accent">
         <h4>評価設計で修正した点</h4>
@@ -359,7 +359,7 @@
     </div>
     <div class="box pale">
       <h4>この発見の意味</h4>
-      <p>予測力が足りない状態でMAEだけを最適化すると 警報の用途では基準線を下回る<br>外気温を入れて予測力が上がると解消し F1は0.382→0.598へ<br><b>精度指標だけでモデルを選ぶと この差が見えない</b> / 次ページは目的関数側からの打ち手</p>
+      <p>予測力が足りない状態でMAEだけを最適化すると 警報の用途では基準線を下回る<br>外部気象を入れて予測力が上がると解消し F1は0.382→0.598へ<br><b>精度指標だけでモデルを選ぶと この差が見えない</b> / 次ページは目的関数側からの打ち手</p>
     </div>
   </div>
 </div>
@@ -367,7 +367,7 @@
 <!-- 13. 結果: 分位点回帰 -->
 <div class="slide" data-page="13">
   <div class="chapter">課題② 予防保全への移行</div>
-  <div class="message">目的関数を運用指標に合わせると1週間先の高温検知は<span class="em">16%→81%</span></div>
+  <div class="message">評価期間上で分位点を変えると<span class="em">相対高温の再現率16%〜81%</span> / 未見性能ではない</div>
   <div class="body col">
     <div class="fig" style="max-height:52mm"><img src="../outputs/figures/fig16_quantile_tradeoff.png"></div>
     <div class="cols">
@@ -400,17 +400,17 @@
 <!-- 14. 結果: イベント単位の検知 -->
 <div class="slide" data-page="14">
   <div class="chapter">課題② 予防保全への移行</div>
-  <div class="message">1週間先の高温イベントは<span class="em">184件中93件を検知</span> / 警報は週1.9回</div>
+  <div class="message">起点軸上の相対高温区間は<span class="em">184区間中93区間を分類</span> / 実イベント警報ではない</div>
   <div class="body col">
     <div class="box accent">
       <h4>数え方を変えた理由</h4>
-      <p>前ページまでの再現率は<b>時刻単位</b>＝「高温だった時間の何割に警報を出せたか」を測っている / 同じ高温区間に毎時警報を出しても複数件と数えられる<br>保全部門が判断に使うのは<b>何件の事象に気づけたか / 何時間前か / 警報は週に何回鳴るか</b>なので 連続する高温時間帯を1件の設備イベントとして数え直した</p>
+      <p>前ページまでの再現率は<b>時刻単位</b>＝「相対高温だった時間の何割を分類できたか」を測っている<br>ここでは連続する超過時間を1区間としてまとめた / ただし閾値は予測起点時点の履歴から作る探索指標であり <b>実設備の危険事象や実運用の警報を評価したものではない</b></p>
     </div>
     <div class="cols">
       <div class="box">
         <h4>24時間先（ETTh1・イベント174件）</h4>
         <table>
-          <tr><th>モデル</th><th class="num">検知</th><th class="num">検知率</th><th class="num">リード</th><th class="num">警報/週</th></tr>
+          <tr><th>モデル</th><th class="num">分類区間</th><th class="num">区間率</th><th class="num">予測猶予</th><th class="num">超過区間/週</th></tr>
           <tr class="highlight"><td>LightGBM＋外気温</td><td class="num">89</td><td class="num">0.51</td><td class="num">24h</td><td class="num">2.24</td></tr>
           <tr><td>Persistence</td><td class="num">82</td><td class="num">0.47</td><td class="num">23.5h</td><td class="num">2.76</td></tr>
           <tr><td>SeasonalNaive</td><td class="num">113</td><td class="num">0.65</td><td class="num">24h</td><td class="num"><span class="bad">6.13</span></td></tr>
@@ -420,7 +420,7 @@
       <div class="box">
         <h4>1週間先（ETTh1・イベント184件）</h4>
         <table>
-          <tr><th>モデル</th><th class="num">検知</th><th class="num">検知率</th><th class="num">リード</th><th class="num">警報/週</th></tr>
+          <tr><th>モデル</th><th class="num">分類区間</th><th class="num">区間率</th><th class="num">予測猶予</th><th class="num">超過区間/週</th></tr>
           <tr class="highlight"><td>LightGBM＋外気温</td><td class="num">93</td><td class="num">0.51</td><td class="num">168h</td><td class="num">1.93</td></tr>
           <tr><td>Persistence</td><td class="num">60</td><td class="num">0.33</td><td class="num">168h</td><td class="num">2.78</td></tr>
           <tr><td>SeasonalNaive</td><td class="num">97</td><td class="num">0.53</td><td class="num">168h</td><td class="num"><span class="bad">5.38</span></td></tr>
@@ -430,15 +430,15 @@
       <div class="box okbx">
         <h4>読み取れること</h4>
         <ul>
-          <li>SeasonalNaiveは検知率が高い（0.53〜0.65）が<b>警報が週5〜6回</b>鳴る / 外気温込みは週2回で同等の検知率</li>
-          <li>外気温込みは<b>1週間先でも検知率0.51を保ち</b> 警報頻度はむしろ下がる</li>
-          <li>リードタイムの中央値がホライズンとほぼ一致＝<b>イベント開始の時点で警報が出ている</b></li>
+          <li>SeasonalNaiveは区間率が高い（0.53〜0.65）が予測超過区間も週5〜6回 / 外部特徴量モデルは週約2回</li>
+          <li>外部特徴量モデルは1週間先でも区間率0.51 / ただし実警報の誤報・通知抑制は未評価</li>
+          <li>予測猶予は予測起点から対象時刻までの時間であり <b>実イベント開始前の初回警報時刻ではない</b></li>
           <li>深層モデルは1週間先でほぼ検知できない（DLinear 3件）</li>
         </ul>
       </div>
     </div>
   </div>
-  <div class="footnote">高温イベント＝直近30日の95パーセンタイルを超える時間帯 / 連続する時間帯を1件と数える / 検知＝イベント区間内で一度でも警報が出たこと / リード＝警報を出した起点から対象時刻までの猶予でイベント開始と同時に鳴れば予測ホライズンと同値 / 警報回数も連続を1件と数える</div>
+  <div class="footnote">相対高温＝予測起点までの直近30日の95パーセンタイルを対象値が超えること / 連続時間を1区間として集計 / 予測猶予＝予測起点から対象時刻まで / 実設備の危険閾値・イベント開始前警報・通知抑制は未評価</div>
 </div>
 
 <!-- 14. 結果: 台差 -->
@@ -515,12 +515,12 @@
   <div class="body col">
     <div class="cols">
       <div class="box warnbx">
-        <h4>① 気象予報の誤差を織り込んでいない</h4>
-        <p>将来予測では<b>対象時刻 t+h の気温が正確に分かる前提</b>で評価した / 実運用では気象予報が入る<br>改善幅の大半はこの前提に依存する（外気温なしでは24時間先 +0.5%）ため <b>本結果は予報が完全な場合の上限値</b><br><b>検証方法：</b>予報履歴を入手するか 予報誤差を模擬したノイズを加えて感度を測る</p>
+        <h4>① 実際の気象予報による検証はしていない</h4>
+        <p>将来予測では<b>対象時刻 t+h の気象8変数が正確に分かる前提</b>で評価した / 実運用では気象予報が入る<br>改善幅の大半はこの前提に依存する（外部特徴量なしでは24時間先 +0.5%）ため <b>本結果は完全情報条件の上限値</b><br><b>検証方法：</b>予報履歴を入手するか 予報誤差を模擬したノイズを加えて感度を測る</p>
       </div>
       <div class="box warnbx">
         <h4>② 観測地点は推定値</h4>
-        <p>ETDatasetは地点を公開していない<br>16都市との整合度で南京を選んだが 南京0.919と武漢0.918はほぼ同点で確定はできない<br><b>実地点が判明すれば相関はさらに上がる可能性が高い</b></p>
+        <p>ETDatasetは正確な地点を公開していない<br>16都市との整合度で南京系列を代表プロキシに選んだが 南京0.919と武漢0.918はほぼ同点<br><b>所在地の同定結果ではなく 2系列へ同じ地点を使う妥当性も未確認</b></p>
       </div>
       <div class="box warnbx">
         <h4>③ 単位と機器仕様が不明</h4>
@@ -544,29 +544,64 @@
     <div class="cols">
       <div class="box warnbx">
         <h4>⑦ 設計確定後の独立した評価をしていない</h4>
-        <p>報告値は全期間を4分割した検証の平均で <b>モデル比較のための交差検証値</b><br>差分ターゲット・外気温・地点・分位点を選んだ後も同じ期間で報告しているため <b>設計を固めた後の未見データに対する性能ではない</b><br>本結果は探索的PoCの推定値として読む必要がある</p>
+        <p>報告値は全期間を4分割した検証の平均で <b>モデル比較のための交差検証値</b><br>差分ターゲット・外部気象・地点・分位点を選んだ後も同じ期間で報告しているため <b>設計を固めた後の未見データに対する性能ではない</b><br>本結果は探索的PoCの推定値として読む必要がある</p>
       </div>
       <div class="box warnbx">
         <h4>⑧ 外部データは再取得で値が変わりうる</h4>
-        <p>掲載結果はリポジトリにコミット済みのCSVを使用している / ERA5再解析やAPI側の更新で<b>再取得時に数値が変わる可能性</b>がある<br>取得日・クエリ条件はコードに記録しているが ハッシュによる固定はしていない</p>
+        <p>掲載結果はリポジトリにコミット済みのCSVを使用している / Open-Meteo Historical Weather APIをモデル指定なし（Best Match）で取得しており<b>再取得時に数値が変わる可能性</b>がある<br>取得日・クエリ条件はコードに記録しているが ハッシュによる固定はしていない</p>
       </div>
       <div class="box pale">
         <h4>この報告の位置づけ</h4>
-        <p>①と⑦から <b>本結果は「気象予報が完全に当たる条件での 探索を含んだ推定値」</b>として扱うべき<br>導入判断の前に 予報誤差を織り込んだ再評価と 設計を固めた後の独立評価が要る</p>
+        <p>①と⑦から <b>本結果は「将来の気象8変数が完全に分かる条件での 探索を含んだ推定値」</b>として扱うべき<br>導入判断の前に 予報誤差を織り込んだ再評価と 設計を固めた後の独立評価が要る</p>
       </div>
     </div>
   </div>
 </div>
 
-<!-- 17. 提言 -->
+<!-- 感度分析 -->
 <div class="slide" data-page="18">
+  <div class="chapter">課題② 予防保全への移行</div>
+  <div class="message">実際の予報誤差でも改善幅は<span class="em">25〜32%</span>残る</div>
+  <div class="body col">
+    <div class="fig" style="max-height:62mm"><img src="../outputs/figures/fig18_forecast_noise.png"></div>
+    <div class="cols">
+      <div class="box accent">
+        <h4>何を測ったか</h4>
+        <p>前ページまでの改善幅は対象時刻の気象を完全に知るoracle条件で測っている / 実運用で入るのは予報なので その誤差を模擬した<br>気温予報に標準偏差1〜3℃の正規ノイズを与え 改善幅がどこまで残るかを見る<br><b>実際の気温予報の誤差は24時間先で1〜2℃・1週間先で2〜3℃程度</b></p>
+      </div>
+      <div class="box">
+        <h4>Persistence比の改善率（ETTh1）</h4>
+        <table>
+          <tr><th>予報誤差</th><th class="num">24時間先</th><th class="num">1週間先</th></tr>
+          <tr><td>±0℃（oracle）</td><td class="num">+31.8%</td><td class="num">+35.5%</td></tr>
+          <tr><td colspan="3" style="font-size:8.5pt; color:var(--ink-3); border-bottom:none; padding-top:0">↓ ±0℃を100としたときの残存率</td></tr>
+          <tr class="highlight"><td>±1℃</td><td class="num">+30.1%（95%）</td><td class="num">+35.4%（100%）</td></tr>
+          <tr class="highlight"><td>±2℃</td><td class="num">+27.5%（87%）</td><td class="num">+32.0%（90%）</td></tr>
+          <tr><td>±3℃</td><td class="num">+25.1%（79%）</td><td class="num">+30.5%（86%）</td></tr>
+        </table>
+      </div>
+      <div class="box warnbx">
+        <h4>この模擬の限界</h4>
+        <ul>
+          <li>誤差は時刻ごとに独立な正規ノイズ / 実際の予報誤差は<b>系統的で自己相関を持つ</b>ため楽観側に振れる可能性</li>
+          <li>ノイズを与えたのは気温のみ / 残る7変数と休日は完全既知のまま</li>
+          <li>過去の実予報データによる検証は未実施</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footnote">乱数シードは42に固定 / 各誤差水準で4分割検証を回した平均 / ±0℃の値が本編の+32.3%とわずかに異なるのは LightGBM の bagging・feature sampling による実行差 / 誤差の影響は同一実行内での比較で読む</div>
+</div>
+
+<!-- 17. 提言 -->
+<div class="slide" data-page="19">
   <div class="chapter">10. 提言</div>
-  <div class="message">追加検証で最も誤差が減ったのは<span class="em">外気温の接続</span> / 優先順位は4段階</div>
+  <div class="message">完全情報条件で最も誤差が減ったのは<span class="em">外部気象特徴量の追加</span> / 実予報で再検証が必要</div>
   <div class="body col">
     <div class="flow">
       <div class="step" style="background:var(--blue-pale); border-color:#cfe0f7">
-        <div class="t">最優先　気象データの接続</div>
-        <div class="d">実測と予報の両方 / 本PoCで最も誤差が減った検証でモデル改良より結果につながる / 予報誤差を織り込んだ再評価もここで行う</div>
+        <div class="t">最優先　気象データの再検証</div>
+        <div class="d">実測と実際の予報履歴の両方 / 本PoCでは完全情報条件で誤差が減ったため 予報誤差を織り込んで効果を確認する</div>
       </div>
       <div class="arrow">→</div>
       <div class="step" style="background:var(--blue-pale); border-color:#cfe0f7">
@@ -576,12 +611,12 @@
       <div class="arrow">→</div>
       <div class="step">
         <div class="t">用途を2つに絞った第2フェーズ</div>
-        <div class="d">①異常検知の基準線＝ナウキャスト ②高温予兆の警報＝分位点回帰 / 汎用の「油温予測モデル」を作るのではなくこの2用途で運用条件を決める</div>
+        <div class="d">①正常値推定からの異常検知候補 ②相対高温から実リスク警報への置換 / 異常ラベルと設備仕様を揃えて成立性を確認する</div>
       </div>
       <div class="arrow">→</div>
       <div class="step">
-        <div class="t">見送り　深層モデルへの投資</div>
-        <div class="d">現データ規模で優位性なし / 台数を横断して学習できる規模になった段階で再評価</div>
+        <div class="t">現時点では保留　深層モデルへの追加投資</div>
+        <div class="d">本PoCの検証範囲では優位性を確認できず / 台数を横断して学習できる規模になった段階で再評価</div>
       </div>
     </div>
     <div class="cols">
@@ -596,21 +631,21 @@
       <div class="box okbx">
         <h4>期待できる成果</h4>
         <ul>
-          <li>異常検知：季節・負荷によらない基準線 / ETTh2相当の設備で R²=0.854</li>
-          <li>予兆警報：1週間先の高温を81%捉える / 誤報率16.5%との交換</li>
-          <li>いずれも<b>既存の閾値監視では実現できない</b>機能</li>
+          <li>正常値推定候補：ETTh2で R²=0.854 / 異常検知性能は未評価</li>
+          <li>相対高温：同じ評価期間で再現率16%〜81%の交換関係</li>
+          <li>実設備での価値は<b>異常ラベル・危険閾値・予報履歴</b>を用いて確認する</li>
         </ul>
       </div>
       <div class="box pale">
         <h4>投資判断としての結論</h4>
-        <p>本検証では予測精度の向上に予算を割く根拠は得られなかった<br><b>同額を気象データの接続と計測系の整備に充てる方が結果につながる</b>と判断する</p>
+        <p>本PoCでは深層モデルへ追加投資する根拠は得られなかった<br><b>次の判断材料として 気象予報履歴と計測・設備情報を揃える検証を優先する</b></p>
       </div>
     </div>
   </div>
 </div>
 
 <!-- 18. Appendix: 仮定 -->
-<div class="slide" data-page="19">
+<div class="slide" data-page="20">
   <div class="chapter">Appendix A</div>
   <div class="message">本検証で<span class="em">置いた仮定の一覧</span></div>
   <div class="body">
@@ -619,9 +654,9 @@
         <h4>データに関する仮定</h4>
         <table>
           <tr><th style="width:38%">仮定</th><th>根拠</th></tr>
-          <tr><td>2016/12/5 09:00〜12/7 18:00 の負荷ゼロは<b>欠測</b>である</td><td>負荷6変数が同時に厳密な0を取り かつ同区間で油温が変動を続けている / 負荷ゼロで油温が動くのは物理的に説明できない</td></tr>
+          <tr><td>2016/12/5 09:00〜12/7 18:00 の負荷ゼロ区間を<b>学習から除外</b>する</td><td>6変数が同時に0であり欠測・計測異常・設備停止の可能性がある / 真因は未確定のため保守的に除外し 補間感度は未検証</td></tr>
           <tr><td>ETTh1とETTm1は<b>同一変圧器</b>の異なる粒度である</td><td>毎正時の値を突き合わせ 全17,420点・全7変数で差が厳密に0であることを確認</td></tr>
-          <tr><td>観測地点は<b>華中地方（南京近傍）</b>である</td><td>16都市の気温との整合度で最上位 / 選定には最初の分割の学習期間までしか使わない / 武漢とほぼ同点で確定はできない＝限界②</td></tr>
+          <tr><td>南京系列を<b>代表気象プロキシ</b>として使う</td><td>16都市との整合度で最上位だが武漢とほぼ同点 / 所在地の同定ではなく 2系列に共通利用する妥当性も未確認＝限界②</td></tr>
           <tr><td>油温の単位は<b>℃</b>である</td><td>データセットに記載はないが値域と季節変動の振幅が℃として自然 / ただし絶対的な危険水準の設定には使えない</td></tr>
         </table>
       </div>
@@ -632,8 +667,8 @@
         <table>
           <tr><th style="width:38%">仮定</th><th>根拠</th></tr>
           <tr><td>予測ホライズンは <b>1 / 24 / 168 時間</b>とする</td><td>それぞれ「監視」「翌日の運用計画」「週次の点検計画」という運用単位に対応 / ETT論文の標準設定 24〜720 はベンチマーク比較用であり運用価値の検証には合わない</td></tr>
-          <tr><td>高温イベントは<b>直近30日の95パーセンタイル超過</b>と定義する</td><td>機器仕様が不明で絶対閾値を置けない / 時刻tまでの観測のみで計算でき実運用でも成立する</td></tr>
-          <tr><td>将来予測では対象時刻 <b>t+h の外気温が既知</b>とする</td><td>実運用では気象予報が相当する / 予報列と実測列はコード上も分けている（wx_fc_ と wx_obs_）/ 本結果は予報が完全な場合の上限値＝限界①</td></tr>
+          <tr><td>相対高温を<b>直近30日の95パーセンタイル超過</b>と定義する</td><td>機器仕様が不明なため置いた比較用の探索指標 / 実設備の危険閾値ではない</td></tr>
+          <tr><td>将来予測では対象時刻 <b>t+h の気象8変数が既知</b>とする</td><td>予報列と実測列はコード上で分離（wx_fc_ / wx_obs_）/ 実予報の誤差を含まない完全情報条件の上限値＝限界①</td></tr>
           <tr><td>評価は <b>expanding-window 4分割</b>の平均で行う</td><td>単一のhold-outでは評価期間の季節に結論が依存する</td></tr>
         </table>
       </div>
@@ -642,7 +677,7 @@
 </div>
 
 <!-- 19. Appendix: 実験条件 -->
-<div class="slide" data-page="20">
+<div class="slide" data-page="21">
   <div class="chapter">Appendix B</div>
   <div class="message">実験条件と再現手順</div>
   <div class="body col">
@@ -663,7 +698,7 @@
         <ul>
           <li><b>将来予測：162列</b>／油温のラグ(0〜168)・移動統計(3/6/24/168)・差分・移動平均からの乖離 / 負荷6変数のラグと移動統計 / カレンダーの周期エンコード</li>
           <li><b>ナウキャスト：191列</b>／油温由来の列を一切含まない / 負荷の指数移動平均 時定数6/24/72/168/720 で熱の蓄積を表現</li>
-          <li><b>外気温あり：＋約120列</b>／気温・湿度・風速・日射・気圧・降水・雲量・露点のラグと移動統計 / 中国の法定連休フラグ</li>
+          <li><b>外部気象あり：＋約120列</b>／気温・湿度・風速・日射・気圧・降水・雲量・露点のラグと移動統計 / 中国の法定連休フラグ</li>
         </ul>
       </div>
       <div class="box">
@@ -693,7 +728,7 @@
 </div>
 
 <!-- 20. Appendix: 精度の全結果 -->
-<div class="slide" data-page="21">
+<div class="slide" data-page="22">
   <div class="chapter">Appendix C-1</div>
   <div class="message">将来予測の全結果（MAE ℃・4分割検証の平均）</div>
   <div class="body">
@@ -728,7 +763,7 @@
         <h4>2台の比較で見えること</h4>
         <ul>
           <li>ETTh2 の1時間先は Persistence 比 <b>+58.4%</b> / ETTh1 は <b>+8.4%</b> / 同じ手法で改善幅が7倍違う</li>
-          <li>24時間先は外気温込みでどちらも <b>+32〜37%</b> / 外気温なしでは両方 <b>+0.5%未満</b>に落ちる</li>
+          <li>24時間先は外部気象込みでどちらも <b>+32〜37%</b> / 外部気象なしでは両方 <b>+0.5%未満</b>に落ちる</li>
           <li>Ridge と SeasonalNaive はどちらの台でも基準線を大きく下回る / 線形・周期仮定はこの系列に合わない</li>
         </ul>
       </div>
@@ -738,7 +773,7 @@
 </div>
 
 <!-- 21. Appendix: 運用指標の全結果 -->
-<div class="slide" data-page="22">
+<div class="slide" data-page="23">
   <div class="chapter">Appendix C-2</div>
   <div class="message">運用指標の全結果</div>
   <div class="body">
@@ -778,7 +813,7 @@
   </div>
   <div class="footnote">
     高温イベント＝実測 OT(t+h) が時刻tから見た直近30日の95パーセンタイルを超えること / 再現率＝実際の高温を捉えた割合 / 適合率＝出した警報が当たっていた割合 / 誤報率＝高温でない時刻に警報を出した割合<br>
-    出典 — ETTデータセット: Zhou, H. et al., "Informer", AAAI 2021, pp.11106–11115.／気象（追加利用）: Open-Meteo Historical Weather API（ERA5 再解析）CC BY 4.0・原データ Copernicus Climate Change Service (C3S)／祝日: 中国国務院「放假安排」通知／比較モデル: DLinear（AAAI 2023）・PatchTST（ICLR 2023）
+    出典 — ETTデータセット: Zhou, H. et al., "Informer", AAAI 2021, pp.11106–11115.／気象（追加利用）: Open-Meteo Historical Weather API（モデル指定なし / Best Match）／祝日: 中国国務院「放假安排」通知／比較モデル: DLinear（AAAI 2023）・PatchTST（ICLR 2023）
   </div>
 </div>
 

@@ -135,7 +135,7 @@ def run_task(dataset: str, task: str, horizons=None, save_predictions: bool = Tr
                 records.append({
                     "dataset": dataset, "task": task, "horizon": h,
                     "fold": fold.name,
-                    "model": model.name + ("+外気温" if use_external else ""),
+                    "model": model.name + ("+外気温" if use_external else ""),  # 互換名。実体は気象8変数＋休日
                     **regression_metrics(truth, pred_level),
                     "fit_seconds": round(elapsed, 2),
                 })
@@ -161,7 +161,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--datasets", nargs="+", default=["ETTh1"])
     ap.add_argument("--tasks", nargs="+", default=["forecast", "nowcast"])
-    ap.add_argument("--external", action="store_true", help="外気温・祝日を特徴量に加える")
+    ap.add_argument("--external", action="store_true", help="外部気象8変数・祝日を特徴量に加える")
     ap.add_argument("--out", default=None, help="出力するCSV名")
     args = ap.parse_args()
 

@@ -1,7 +1,7 @@
 """評価指標。
 
 精度そのもの（MAE/RMSE）に加えて、
-「高温イベントを事前に捉えられるか」という運用側の指標も出す。
+探索用に定義した相対高温時間を捉えられるかも評価する。
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ def regression_metrics(y_true: pd.Series, y_pred: pd.Series) -> dict:
 
 def rolling_threshold(ot: pd.Series, window_days: int = 30, q: float = 0.95,
                       min_days: int = 7, steps_per_day: int = 24) -> pd.Series:
-    """「直近の平常水準から見て高温」と言える境界を、時点ごとに引く。
+    """直近分布に対する相対高温の境界を時点ごとに引く。
 
     固定閾値は使えない。ETTh1は2年で水準が20℃近く下がっており、
     学習期間の絶対値で線を引くと評価期間で一度も超えないためである
@@ -38,8 +38,7 @@ def rolling_threshold(ot: pd.Series, window_days: int = 30, q: float = 0.95,
 def threshold_event_metrics(y_true: pd.Series, y_pred: pd.Series, threshold) -> dict:
     """閾値超過を「警報を出すべき事象」とみなした時の検知性能。
 
-    予防保全では、℃単位の誤差そのものより
-    「危険水準に入る前に気づけるか」が意思決定に効く。
+    機器仕様に基づく危険閾値ではなく、モデル比較用の相対指標。
     threshold はスカラーでも、時点ごとに動く Series でもよい。
     """
     if isinstance(threshold, pd.Series):

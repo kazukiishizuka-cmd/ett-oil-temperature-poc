@@ -1,17 +1,17 @@
-"""外部データ（外気温）の取得と、観測地点の推定。
+"""外部気象データの取得と、代表気象系列の選定。
 
 EDAで「同時刻の負荷はOTの水準を最大 r=0.22 しか説明しない」ことが分かった。
-一方でOTの日内パターン（早朝に最低・午後に最高）と季節変動は外気温の形そのもので、
-油温 = 外気温 + 負荷による温度上昇 という物理を踏まえると、
-説明変数として最も効くはずの外気温がデータセットに含まれていない。
+外気温と負荷が油温へ影響するという物理仮説を踏まえ、外部気象を探索的に追加する。
+OTと気温の共変動は所在地の同定や因果効果を示すものではない。
 
 ETDatasetは観測地点を「中国のある省の2地域」としか公開していないため、
-気候帯を広くとった候補都市の気温とOTの相関を測り、最も整合する地点を推定して使う。
+候補都市の気温とOTの整合度を測り、代表プロキシとして使う系列を選ぶ。
+実地点を推定・特定するものではない。
 
 データ出典:
-  Open-Meteo Historical Weather API (ERA5 reanalysis)
+  Open-Meteo Historical Weather API (model unspecified / Best Match)
   https://open-meteo.com/en/docs/historical-weather-api
-  ライセンス: CC BY 4.0 / 原データ Copernicus Climate Change Service (C3S) ERA5
+  ライセンス: CC BY 4.0 / 取得時の既定モデル系列
 """
 from __future__ import annotations
 
@@ -101,7 +101,7 @@ SELECTION_CUTOFF = "2017-02-26 23:59:59"
 
 
 def estimate_location(weather: dict, cutoff: str = SELECTION_CUTOFF) -> pd.DataFrame:
-    """候補地点の気温とOTの整合度を測り、観測地点を推定する。
+    """候補都市の気温とOTの整合度を測り、代表気象系列を選ぶ。
 
     絶対水準のトレンドに引きずられないよう、日次平均に集約したうえで
       1) 生の相関
@@ -109,7 +109,8 @@ def estimate_location(weather: dict, cutoff: str = SELECTION_CUTOFF) -> pd.DataF
       3) 日内パターン（時刻別の平均偏差）の相関
     の3つを見る。
 
-    cutoff より後ろは使わない。評価期間の油温を見て最も適合する都市を選ぶと、
+    このスコアは実地点の同定を意味しない。cutoff より後ろは使わない。
+    評価期間の油温を見て最も適合する都市を選ぶと、
     外部データの選定を通じて評価対象の正解値が漏れるため。
     """
     from data import clean_dataset, load_dataset
@@ -150,7 +151,7 @@ def estimate_location(weather: dict, cutoff: str = SELECTION_CUTOFF) -> pd.DataF
 
 
 def main() -> None:
-    print("外気温データを取得:")
+    print("外部気象データを取得:")
     weather = fetch_all()
     print(f"\n{len(weather)} 地点を取得")
     est = estimate_location(weather)

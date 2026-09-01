@@ -10,9 +10,9 @@ import pandas as pd
 
 from config import EXOG, TARGET
 
-# 欠測のゼロ埋め区間を判定する閾値（負荷6変数がすべて厳密に0）
+# 欠測・計測異常・停止の疑いがある区間（負荷6変数がすべて厳密に0）
 def missing_mask(df: pd.DataFrame) -> pd.Series:
-    """負荷6変数が厳密にゼロの行＝欠測のゼロ埋めとみなすマスクを返す。"""
+    """負荷6変数が厳密にゼロの疑わしい区間を示すマスクを返す。"""
     return (df[EXOG] == 0).all(axis=1)
 
 

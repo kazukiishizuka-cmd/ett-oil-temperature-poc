@@ -1,9 +1,9 @@
 """外部データ（気象・祝日）の読み込みと特徴量化。
 
 データ出典:
-  - 気象: Open-Meteo Historical Weather API (ERA5 reanalysis)
+  - 気象: Open-Meteo Historical Weather API (model unspecified / Best Match)
           https://open-meteo.com/en/docs/historical-weather-api
-          CC BY 4.0 / 原データ Copernicus Climate Change Service (C3S)
+          CC BY 4.0 / 再解析・数値気象モデルを組み合わせた既定系列
   - 祝日: 中国国務院公布の法定休日（2016-2018）を手動で定義
           https://www.gov.cn/zhengce/content/  （年度ごとの放假安排通知）
 """
@@ -49,8 +49,8 @@ def load_weather(city: str = DEFAULT_CITY) -> pd.DataFrame:
 def holiday_flags(index: pd.DatetimeIndex) -> pd.DataFrame:
     """祝日フラグと、連休からの経過日数を作る。
 
-    中国の製造業は春節に2週間近く止まるため、負荷の構造が年に一度大きく変わる。
-    フラグだけでなく前後の日数も持たせて、立ち上がり・立ち下がりを表せるようにする。
+    公開されている全国休日日程を、設備稼働カレンダーの代理変数として使う。
+    実際の操業日・振替出勤・保守停止を表すものではない。
     """
     out = pd.DataFrame(index=index)
     dates = index.normalize()
@@ -77,14 +77,15 @@ def holiday_flags(index: pd.DatetimeIndex) -> pd.DataFrame:
 def weather_features(index: pd.DatetimeIndex, city: str = DEFAULT_CITY,
                      horizon: int = 0, steps_per_day: int = 24,
                      obs_lag_hours=(0, 1, 3, 6, 12, 24),
-                     window_hours=(6, 24, 168), use_forecast: bool = True) -> pd.DataFrame:
+                     window_hours=(6, 24, 168), use_forecast: bool = True,
+                     forecast_noise_std: float = 0.0, noise_seed: int = 42) -> pd.DataFrame:
     """気象データを特徴量にする。
 
     列を2種類に分ける。混ぜると「どの時刻の気象を使っているか」が追えなくなる。
 
     wx_obs_* : 予測起点 t までに観測済みの実測値。ラグと移動統計はここから作る
-    wx_fc_*  : 予測対象時刻 t+horizon の値。実運用では気象予報が入る想定で、
-               ここでは実測値を予報の代理として使う（＝予報が完全な場合の上限性能）
+    wx_fc_*  : 予測対象時刻 t+horizon の再解析値。実予報ではなく、
+               気象8変数を完全に知るoracle条件として上限性能を測る
 
     horizon=0（ナウキャスト）では対象時刻＝起点なので wx_obs_*_lag0 がそれに当たる。
     課題文の「t=Tの油温を予測する際には t=Tでの特徴量を使用して良い」に対応する。
@@ -124,10 +125,18 @@ def weather_features(index: pd.DatetimeIndex, city: str = DEFAULT_CITY,
 
     # --- 予測対象時刻の気象（予報の代理） ---
     if use_forecast and horizon > 0:
-        d = {f"wx_fc_{col}": w[col].shift(-horizon) for col in WEATHER_COLS}
+        fc = {col: w[col].shift(-horizon) for col in WEATHER_COLS}
+        if forecast_noise_std > 0:
+            # 気象予報の誤差を模擬する。実運用では再解析の実測ではなく予報が入るため、
+            # 完全既知を前提にした改善幅がどこまで残るかを測るためのノイズ。
+            # 気温にだけ与える（主要な説明変数であり、℃単位で誤差水準を解釈できるため）。
+            rng = np.random.default_rng(noise_seed)
+            noise = pd.Series(rng.normal(0.0, forecast_noise_std, len(index)), index=index)
+            fc["temperature_2m"] = fc["temperature_2m"] + noise
+        d = {f"wx_fc_{col}": v for col, v in fc.items()}
         # 起点から対象時刻までに気温がどれだけ動くか。予報が持つ本質的な追加情報はここ
-        d["wx_fc_temp_delta"] = t.shift(-horizon) - t
-        d["wx_fc_temp_delta_abs"] = (t.shift(-horizon) - t).abs()
+        d["wx_fc_temp_delta"] = fc["temperature_2m"] - t
+        d["wx_fc_temp_delta_abs"] = (fc["temperature_2m"] - t).abs()
         parts.append(pd.DataFrame(d, index=index))
 
     return pd.concat(parts, axis=1).replace([np.inf, -np.inf], np.nan)

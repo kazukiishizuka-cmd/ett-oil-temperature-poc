@@ -1,7 +1,7 @@
 """実験結果の集計と図の生成。
 
 表形式モデルと深層モデルの結果を1つの表に統合し、
-精度指標と運用指標（高温イベントの事前検知）の両方を出す。
+精度指標と、探索的な相対高温の分類指標を出す。
 """
 from __future__ import annotations
 
@@ -63,11 +63,11 @@ def load_all_predictions() -> pd.DataFrame:
 
 
 def event_table(preds: pd.DataFrame, dataset: str = "ETTh1") -> pd.DataFrame:
-    """高温イベントの事前検知性能を、時点ごとに動く閾値で評価する。
+    """相対高温区間の分類性能を、起点時点で計算できる閾値で評価する。
 
     時刻単位（各タイムスタンプを1件と数える）と
     イベント単位（連続する高温時間帯を1件と数える）の両方を出す。
-    保全部門が知りたいのは後者だが、両方ないとモデルの挙動が読めない。
+    実設備の危険イベントや運用警報を直接評価するものではない。
     """
     from config import DATASETS
     spd = DATASETS[dataset]["steps_per_day"]
@@ -123,7 +123,7 @@ def fig_model_comparison(metrics: pd.DataFrame) -> None:
     ax.set_ylabel("MAE（℃, 4分割検証の平均）")
     ax.legend(ncol=4, loc="upper left", fontsize=8.5, columnspacing=1.2, handlelength=1.4)
     ax.margins(y=0.16)
-    fig.suptitle("外気温を入れると全ホライズンで基準線を上回る / 24時間先 +32% / 1週間先 +36%", x=0.01, ha="left", fontsize=14)
+    fig.suptitle("将来の外部気象8変数が完全既知なら / 24時間先 +32% / 1週間先 +36%", x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig08_model_comparison.png")
 
@@ -152,7 +152,7 @@ def fig_skill_score(metrics: pd.DataFrame) -> None:
     ax.set_xticks(x); ax.set_xticklabels([HORIZON_LABEL[h] for h in horizons])
     ax.set_ylabel("Persistence比の改善率（%）")
     ax.legend(ncol=3, fontsize=9)
-    fig.suptitle("外気温込みなら24時間先でも +32% / 外気温なしでは +0.5%", x=0.01, ha="left", fontsize=14)
+    fig.suptitle("外部気象の完全情報条件では24時間先 +32% / なしでは +0.5%", x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig09_skill_score.png")
 
@@ -208,7 +208,7 @@ def fig_fold_stability(metrics: pd.DataFrame) -> None:
 
 
 def fig_nowcast(preds: pd.DataFrame, metrics: pd.DataFrame) -> None:
-    """負荷だけからOTを推定した結果と、外気温を足した効果。"""
+    """負荷だけからOTを推定した結果と、外部気象を足した差。"""
     nc = metrics[metrics.task == "nowcast"]
     piv = nc.pivot_table(index=["dataset", "model"], values="MAE", aggfunc="mean")
 
@@ -216,7 +216,7 @@ def fig_nowcast(preds: pd.DataFrame, metrics: pd.DataFrame) -> None:
 
     # 左: データセット×入力条件のMAE比較
     conditions = [("TrainMean", "平均を答えるだけ"), ("LightGBM", "負荷のみ"),
-                  ("LightGBM+外気温", "負荷＋外気温")]
+                  ("LightGBM+外気温", "負荷＋外部気象")]
     colors = [G2, G4, ACCENT]  # 2016 / 2017 / 2018。結論に効く2018年だけ塗る
     x = np.arange(2)
     width = 0.26
@@ -233,13 +233,13 @@ def fig_nowcast(preds: pd.DataFrame, metrics: pd.DataFrame) -> None:
     axes[0].legend(fontsize=9)
     axes[0].set_title("油温を一切見ずに推定した誤差", loc="left", fontsize=11)
 
-    # 右: ETTh2 の推定系列（外気温あり）
+    # 右: ETTh2 の推定系列（外部気象あり）
     g = preds[(preds.task == "nowcast") & (preds.dataset == "ETTh2") & (preds.fold == "fold4")]
     truth = g[g.model == "LightGBM+外気温"].sort_values("timestamp")
     if truth.empty:
         truth = g[g.model == "LightGBM"].sort_values("timestamp")
     axes[1].plot(truth.timestamp, truth.y_true, color=INK_SECONDARY, lw=1.3, label="実測")
-    for model, color, lbl in [("LightGBM", G3, "負荷のみ"), ("LightGBM+外気温", ACCENT, "負荷＋外気温")]:
+    for model, color, lbl in [("LightGBM", G3, "負荷のみ"), ("LightGBM+外気温", ACCENT, "負荷＋外部気象")]:
         gm = g[g.model == model].sort_values("timestamp")
         if not gm.empty:
             axes[1].plot(gm.timestamp, gm.y_pred, color=color, lw=1.2, alpha=0.9, label=lbl)
@@ -248,14 +248,14 @@ def fig_nowcast(preds: pd.DataFrame, metrics: pd.DataFrame) -> None:
     axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
     axes[1].set_title("ETTh2 test期間の推定値", loc="left", fontsize=11)
 
-    fig.suptitle("外気温を足すとETTh2の油温推定はMAE 2.1℃ / 平均予測の5分の1",
+    fig.suptitle("外部気象を足したETTh2の正常値推定候補はMAE 2.1℃ / 平均予測の5分の1",
                  x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig12_nowcast.png")
 
 
 def fig_event_detection(events: pd.DataFrame) -> None:
-    """高温イベントの事前検知性能。"""
+    """探索的な相対高温の分類性能。"""
     fig, axes = plt.subplots(1, 3, figsize=(12, 3.8))
     for ax, h in zip(axes, [1, 24, 168]):
         g = events[events.horizon == h]
@@ -309,7 +309,7 @@ def fig_importance() -> None:
 
 
 def fig_weather_relation() -> None:
-    """外気温と油温の関係。データに欠けていた変数であることを示す。"""
+    """候補地点の気温と油温の関係。共通季節性を含む関連を示す。"""
     import warnings
     warnings.filterwarnings("ignore", message=".*encountered in matmul.*", category=RuntimeWarning)
     from external_features import DEFAULT_CITY, WEATHER_COLS, load_weather
@@ -373,7 +373,7 @@ def fig_weather_relation() -> None:
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
     ax.legend(ncol=3, loc="upper right", fontsize=9)
 
-    fig.suptitle("油温を最も説明する変数は外気温 r=0.97 / これはデータに入っていなかった",
+    fig.suptitle("候補地点の気温と油温は強く共変 r=0.97 / 共通季節性を含む",
                  x=0.01, ha="left", fontsize=14)
     save(fig, FIGURE_DIR / "fig15_weather_relation.png")
 
@@ -444,7 +444,7 @@ def fig_quantile_tradeoff() -> None:
     ax.legend(fontsize=9)
     ax.set_title("分位点を上げると見逃しが減る", loc="left", fontsize=11)
 
-    fig.suptitle("目的関数を運用指標に合わせると1週間先の高温検知は16%→81%になる",
+    fig.suptitle("同じ評価期間で分位点を変えると相対高温の再現率は16%→81%",
                  x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig16_quantile_tradeoff.png")
@@ -478,6 +478,45 @@ def fig_dataset_comparison(metrics: pd.DataFrame) -> None:
     save(fig, FIGURE_DIR / "fig17_dataset_comparison.png")
 
 
+def fig_forecast_noise() -> None:
+    """気象予報の誤差に対する感度。改善幅がどこまで残るかを示す。"""
+    path = RESULT_DIR / "metrics_sensitivity_ETTh1.csv"
+    if not path.exists():
+        print("  skip: 感度分析の結果がない")
+        return
+    sens = pd.read_csv(path).groupby(["horizon", "noise_std"])["MAE"].mean().reset_index()
+    base = pd.read_csv(RESULT_DIR / "metrics_all.csv")
+    base = base[(base.task == "forecast") & (base.dataset == "ETTh1") & (base.model == "Persistence")]
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4))
+    for h, color, marker in [(24, G3, "o"), (168, ACCENT, "s")]:
+        g = sens[sens.horizon == h].sort_values("noise_std")
+        p = base[base.horizon == h]["MAE"].mean()
+        axes[0].plot(g.noise_std, g.MAE, marker=marker, ms=6, color=color, label=HORIZON_LABEL[h])
+        axes[0].axhline(p, color=color, ls="--", lw=1, alpha=.6)
+        axes[0].text(3.05, p, f"Persistence {p:.2f}", color=color, fontsize=8, va="center")
+        gain = (1 - g.MAE / p) * 100
+        axes[1].plot(g.noise_std, gain, marker=marker, ms=6, color=color, label=HORIZON_LABEL[h])
+        for x, y in zip(g.noise_std, gain):
+            axes[1].text(x, y + 0.8, f"{y:.0f}%", ha="center", fontsize=8, color=INK_SECONDARY)
+    # 実際の気温予報の誤差水準
+    for ax in axes:
+        ax.axvspan(1.0, 3.0, color=ACCENT, alpha=.06, zorder=0)
+        ax.set_xlabel("気温予報に与えた誤差の標準偏差（℃）")
+        ax.set_xticks([0, 1, 2, 3])
+    axes[0].set_ylabel("MAE（℃）")
+    axes[0].set_title("誤差を与えたときの予測精度", loc="left", fontsize=11)
+    axes[0].legend()
+    axes[1].set_ylabel("Persistence比の改善率（%）")
+    axes[1].set_title("改善幅がどこまで残るか", loc="left", fontsize=11)
+    axes[1].set_ylim(0, 42)
+    axes[1].legend()
+    axes[1].text(2.0, 4, "実際の気温予報の\n誤差水準", ha="center", fontsize=8.5, color=ACCENT)
+    fig.suptitle("実際の予報誤差（1〜3℃）でも改善幅は25〜32%残る", x=0.01, ha="left", fontsize=14)
+    fig.tight_layout()
+    save(fig, FIGURE_DIR / "fig18_forecast_noise.png")
+
+
 def main() -> None:
     setup_style()
     metrics = load_all_metrics()
@@ -499,7 +538,7 @@ def main() -> None:
 
     events = event_table(preds)
     events.to_csv(RESULT_DIR / "event_metrics.csv", index=False)
-    print("\n=== 高温イベントの事前検知: 時刻単位（ETTh1） ===")
+    print("\n=== 相対高温の探索的分類: 時刻単位（ETTh1） ===")
     print(events[["horizon", "model", "n_hot_steps", "precision", "recall", "f1"]]
           .round(3).to_string(index=False))
     print("\n=== 同: イベント単位（連続する高温時間帯を1件と数える） ===")
@@ -518,6 +557,7 @@ def main() -> None:
     fig_weather_relation()
     fig_quantile_tradeoff()
     fig_dataset_comparison(metrics)
+    fig_forecast_noise()
 
 
 if __name__ == "__main__":
