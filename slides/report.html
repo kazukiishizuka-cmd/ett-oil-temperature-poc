@@ -40,7 +40,7 @@
       <div class="stat">
         <div class="label">外気温と油温の相関</div>
         <div class="value blue">r = 0.97</div>
-        <div class="note">外気温と油温の日次相関 / データに含まれる負荷6変数の相関は最大 0.50 / 最も説明力の高い変数が最初から入っていない</div>
+        <div class="note">ETTh2 / 外気温と油温の日次相関 / データに含まれる負荷6変数の相関は最大 0.50 / 最も説明力の高い変数が最初から入っていない</div>
       </div>
     </div>
     <div class="cols">
@@ -150,7 +150,7 @@
 <!-- 6. EDA: 自己相関と負荷 -->
 <div class="slide" data-page="6">
   <div class="chapter">2. データ理解</div>
-  <div class="message">油温は<span class="em">自己履歴が支配的</span> / 同時刻の負荷による説明力は<span class="warn">最大 r=0.22</span></div>
+  <div class="message">油温は<span class="em">自己履歴が支配的</span> / 同時刻の負荷による説明力はETTh1で<span class="warn">最大 r=0.22</span></div>
   <div class="body col">
     <div class="cols">
       <div class="fig"><img src="../outputs/figures/fig06_acf.png"></div>
@@ -218,7 +218,7 @@
 <!-- 8. 結果: モデル比較 -->
 <div class="slide" data-page="8">
   <div class="chapter">4. 検証結果</div>
-  <div class="message">基準線を明確に上回るのは<span class="em">1週間先のみ</span> / 24時間先はほぼ横並び</div>
+  <div class="message">外気温を入れると<span class="em">全ホライズンで基準線を上回る</span> / 24時間先 +32% / 1週間先 +36%</div>
   <div class="body">
     <div class="fig"><img src="../outputs/figures/fig08_model_comparison.png"></div>
     <div class="side">
@@ -291,7 +291,7 @@
 <!-- 10. 発見: 外気温 -->
 <div class="slide" data-page="10">
   <div class="chapter">5. 追加検証</div>
-  <div class="message">油温を最も説明する変数は<span class="em">外気温 r=0.96</span> / <span class="warn">データセットには非収録</span></div>
+  <div class="message">油温を最も説明する変数は<span class="em">外気温 r=0.977</span> / <span class="warn">データセットには非収録</span></div>
   <div class="body">
     <div class="fig"><img src="../outputs/figures/fig15_weather_relation.png"></div>
   </div>
@@ -444,7 +444,7 @@
 <!-- 14. 結果: 台差 -->
 <div class="slide" data-page="15">
   <div class="chapter">7. 一般化可能性</div>
-  <div class="message">同一手法でも2台で改善幅は<span class="warn">+6%と+57%</span> / 1台の検証では判断困難</div>
+  <div class="message">同一手法でも2台で改善幅は<span class="warn">+8%と+58%</span> / 1台の検証では判断困難</div>
   <div class="body col">
     <div class="fig"><img src="../outputs/figures/fig17_dataset_comparison.png"></div>
     <div class="cols">
@@ -530,7 +530,7 @@
     <div class="cols">
       <div class="box warnbx">
         <h4>④ 2台のみの検証</h4>
-        <p>p.14の通り結論が台によって割れる / 母数2台では「どちらが一般的か」を判断できない</p>
+        <p>p.15の通り結論が台によって割れる / 母数2台では「どちらが一般的か」を判断できない</p>
       </div>
       <div class="box warnbx">
         <h4>⑤ ETTh1のレベルシフトの原因が未特定</h4>
@@ -571,7 +571,7 @@
       <div class="arrow">→</div>
       <div class="step" style="background:var(--blue-pale); border-color:#cfe0f7">
         <div class="t">次点　計測系の素性確認</div>
-        <div class="d">記録分解能・サンプリング周期・欠測処理の仕様および機器の改修履歴 / p.14の通り結果を左右する / モデル構築より前に確認すべき項目</div>
+        <div class="d">記録分解能・サンプリング周期・欠測処理の仕様および機器の改修履歴 / p.15の通り結果を左右する / モデル構築より前に確認すべき項目</div>
       </div>
       <div class="arrow">→</div>
       <div class="step">
