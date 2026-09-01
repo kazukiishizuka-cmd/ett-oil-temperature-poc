@@ -1,0 +1,5 @@
+dataset,n_rows,start,end,expected_rows,missing_timestamps,duplicated_timestamps,nan_cells,zero_rows_all_cols,all_load_zero_points,ot_unique_values
+ETTh1,17420,2016-07-01,2018-06-26 19:00:00,17420,0,0,0,7,58,669
+ETTh2,17420,2016-07-01,2018-06-26 19:00:00,17420,0,0,0,0,0,1628
+ETTm1,69680,2016-07-01,2018-06-26 19:45:00,69680,0,0,0,33,234,700
+ETTm2,69680,2016-07-01,2018-06-26 19:45:00,69680,0,0,0,0,0,1910

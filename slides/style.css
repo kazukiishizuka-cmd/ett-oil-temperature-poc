@@ -1,0 +1,166 @@
+/* PoC報告スライド 16:9。
+   「メッセージ＆ボディ」構成に対応させ、各ページの主張を1行で言い切る枠を固定する。 */
+
+@page { size: 338.667mm 190.5mm; margin: 0; }
+
+:root {
+  --ink:            #0b0b0b;
+  --ink-secondary:  #52514e;
+  --ink-muted:      #8a8880;
+  --surface:        #ffffff;
+  --surface-alt:    #f7f7f5;
+  --rule:           #e6e5e1;
+  --blue:           #2a78d6;
+  --blue-pale:      #eef4fc;
+  --orange:         #eb6834;
+  --orange-pale:    #fdf1e9;
+  --aqua:           #1baf7a;
+  --red:            #e34948;
+  --red-pale:       #fbe9e9;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
+  color: var(--ink);
+  background: var(--surface-alt);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.slide {
+  position: relative;
+  width: 338.667mm;
+  height: 190.5mm;
+  background: var(--surface);
+  padding: 12mm 15mm 10mm;
+  page-break-after: always;
+  break-after: page;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.slide:last-child { page-break-after: auto; }
+
+/* --- ヘッダ（章名）とフッタ（ページ番号） --- */
+.chapter {
+  font-size: 10.5pt;
+  color: var(--ink-muted);
+  letter-spacing: .04em;
+  margin-bottom: 3mm;
+}
+.slide::after {
+  content: attr(data-page);
+  position: absolute;
+  right: 16mm; bottom: 7mm;
+  font-size: 9.5pt;
+  color: var(--ink-muted);
+}
+.footnote {
+  position: absolute;
+  left: 16mm; right: 40mm; bottom: 6.5mm;
+  font-size: 8.5pt;
+  color: var(--ink-muted);
+  line-height: 1.5;
+}
+
+/* --- メッセージ：そのページで言い切ること --- */
+.message {
+  font-size: 20pt;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -.01em;
+  padding-bottom: 3.5mm;
+  border-bottom: 2.5px solid var(--blue);
+  margin-bottom: 5mm;
+}
+.message .em { color: var(--blue); }
+.message .warn { color: var(--red); }
+
+/* --- ボディ --- */
+.body { flex: 1; min-height: 0; display: flex; gap: 7mm; }
+.body.col { flex-direction: column; gap: 4mm; }
+.body img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.fig { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; }
+.fig img { width: 100%; height: 100%; object-fit: contain; }
+
+.side { width: 92mm; flex-shrink: 0; display: flex; flex-direction: column; gap: 4mm; }
+
+/* --- 箱 --- */
+.box {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 4mm 5mm;
+  background: var(--surface);
+}
+.box.pale   { background: var(--surface-alt); }
+.box.accent { background: var(--blue-pale);   border-color: #cfe0f7; }
+.box.warnbx { background: var(--red-pale);    border-color: #f3d2d2; }
+.box.okbx   { background: var(--orange-pale); border-color: #f7ddcb; }
+.box h4 {
+  font-size: 11pt; font-weight: 700; margin-bottom: 2.5mm;
+  color: var(--ink);
+}
+.box p, .box li { font-size: 10pt; line-height: 1.55; color: var(--ink-secondary); }
+.box ul { padding-left: 4.5mm; }
+.box li { margin-bottom: 1.2mm; }
+
+/* --- 表 --- */
+table { border-collapse: collapse; width: 100%; font-size: 9.5pt; }
+th, td { padding: 2.1mm 2.6mm; text-align: left; border-bottom: 1px solid var(--rule); }
+th {
+  font-weight: 700; font-size: 9.5pt; color: var(--ink-secondary);
+  background: var(--surface-alt); border-bottom: 1.5px solid var(--rule);
+}
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.highlight td { background: var(--blue-pale); font-weight: 700; color: var(--ink); }
+td .good { color: var(--aqua); font-weight: 700; }
+td .bad  { color: var(--red);  font-weight: 700; }
+
+/* --- 3カラムの構造テキスト --- */
+.cols { display: flex; gap: 5mm; flex: 1; min-height: 0; }
+.cols > * { flex: 1; }
+
+/* --- 表紙 --- */
+.cover { justify-content: center; }
+.cover .eyebrow { font-size: 12pt; color: var(--blue); font-weight: 700; letter-spacing: .08em; margin-bottom: 6mm; }
+.cover h1 { font-size: 34pt; line-height: 1.3; letter-spacing: -.02em; margin-bottom: 5mm; }
+.cover .sub { font-size: 13pt; color: var(--ink-secondary); line-height: 1.7; }
+.cover .meta { margin-top: 12mm; font-size: 10.5pt; color: var(--ink-muted); line-height: 1.8; }
+
+/* --- 章扉 --- */
+.divider { justify-content: center; background: var(--surface-alt); }
+.divider .num { font-size: 13pt; color: var(--blue); font-weight: 700; margin-bottom: 3mm; }
+.divider h2 { font-size: 27pt; letter-spacing: -.02em; }
+.divider .lead { margin-top: 5mm; font-size: 12.5pt; color: var(--ink-secondary); line-height: 1.7; max-width: 210mm; }
+
+/* --- 数値を大きく見せる --- */
+.stat-row { display: flex; gap: 5mm; }
+.stat {
+  flex: 1; border: 1px solid var(--rule); border-radius: 4px;
+  padding: 5mm 6mm; background: var(--surface);
+}
+.stat .label { font-size: 9.5pt; color: var(--ink-muted); margin-bottom: 2mm; }
+.stat .value { font-size: 25pt; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+.stat .value.blue { color: var(--blue); }
+.stat .value.red  { color: var(--red); }
+.stat .note { font-size: 9.5pt; color: var(--ink-secondary); margin-top: 2mm; line-height: 1.5; }
+
+/* --- 流れ図 --- */
+.flow { display: flex; align-items: stretch; gap: 3mm; }
+.flow .step {
+  flex: 1; border: 1px solid var(--rule); border-radius: 4px;
+  padding: 4mm 4.5mm; background: var(--surface);
+}
+.flow .step .t { font-size: 10pt; font-weight: 700; margin-bottom: 1.5mm; }
+.flow .step .d { font-size: 9.5pt; color: var(--ink-secondary); line-height: 1.55; }
+.flow .arrow { display: flex; align-items: center; color: var(--ink-muted); font-size: 13pt; }
+
+.tag {
+  display: inline-block; font-size: 8.5pt; font-weight: 700;
+  padding: .8mm 2.2mm; border-radius: 3px; margin-right: 2mm;
+}
+.tag.blue { background: var(--blue-pale); color: var(--blue); }
+.tag.red  { background: var(--red-pale);  color: var(--red); }
+.tag.gray { background: var(--surface-alt); color: var(--ink-secondary); }

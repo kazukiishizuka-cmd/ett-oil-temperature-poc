@@ -1,0 +1,12 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# 中間生成物（スクリプトから再生成できるため追跡しない）
+outputs/results/predictions_*.csv
+outputs/results/deep_log.txt
+
+# OS
+.DS_Store
