@@ -14,19 +14,22 @@ from config import FIGURE_DIR, RESULT_DIR, TARGET
 from data import clean_dataset, load_dataset
 from evaluate import rolling_threshold, threshold_event_metrics
 from plotting import (
-    AQUA, BLUE, GRID, INK_MUTED, INK_SECONDARY, MAGENTA, ORANGE, RED, VIOLET,
-    setup_style, save,
+    ACCENT, ACCENT_PALE, BAD, G1, G2, G3, G4, G5, GRID, INK, INK_MUTED,
+    INK_SECONDARY, RULE_STRONG, setup_style, save,
 )
 
 # モデルの並び順と色を固定する（系列の同一性が図をまたいで保たれるように）
 MODEL_ORDER = ["Persistence", "SeasonalNaive", "Ridge", "PatchTST", "DLinear",
                "LightGBM", "LightGBM+外気温"]
 MODEL_COLOR = {
-    "Persistence": INK_MUTED, "SeasonalNaive": "#b9b7ae", "Ridge": AQUA,
-    "DLinear": VIOLET, "PatchTST": MAGENTA, "LightGBM": BLUE,
-    "LightGBM+外気温": ORANGE, "TrainMean": INK_MUTED,
-    "Persistence+外気温": INK_MUTED, "SeasonalNaive+外気温": "#b9b7ae",
-    "Ridge+外気温": AQUA, "TrainMean+外気温": INK_MUTED,
+    # 学習の重さの順にグレーを濃くし、結論に効く系列だけを琥珀で塗る
+    "SeasonalNaive": G1, "TrainMean": G1, "TrainMean+外気温": G1,
+    "Ridge": G2, "Ridge+外気温": G2,
+    "PatchTST": G3,
+    "DLinear": G4,
+    "Persistence": G3, "Persistence+外気温": G3,
+    "LightGBM": G5,
+    "LightGBM+外気温": ACCENT,
 }
 HORIZON_LABEL = {1: "1時間先", 24: "24時間先", 168: "1週間先"}
 
@@ -96,16 +99,18 @@ def fig_model_comparison(metrics: pd.DataFrame) -> None:
         bars = ax.bar(x + (i - (len(models) - 1) / 2) * width, vals, width * 0.9,
                       color=MODEL_COLOR[m], label=m)
         for b, v in zip(bars, vals):
-            ax.text(b.get_x() + b.get_width() / 2, v, f"{v:.2f}", ha="center", va="bottom",
-                    fontsize=8, color=INK_SECONDARY)
+            # 基準線の破線と数値が重ならないよう、軸の高さに比例した余白を空ける
+            ax.text(b.get_x() + b.get_width() / 2, v + piv.to_numpy().max() * 0.018,
+                    f"{v:.2f}", ha="center", va="bottom", fontsize=8, color=INK_SECONDARY)
     for i, h in enumerate(horizons):
         base = piv.loc[h, "Persistence"]
-        ax.plot([x[i] - 0.45, x[i] + 0.45], [base, base], color=RED, lw=1.4, ls="--",
+        ax.plot([x[i] - 0.45, x[i] + 0.45], [base, base], color=INK, lw=1.4, ls="--",
                 zorder=5, label="Persistence水準" if i == 0 else None)
     ax.set_xticks(x)
     ax.set_xticklabels([HORIZON_LABEL[h] for h in horizons])
     ax.set_ylabel("MAE（℃, 4分割検証の平均）")
-    ax.legend(ncol=4, loc="upper left", fontsize=9)
+    ax.legend(ncol=4, loc="upper left", fontsize=8.5, columnspacing=1.2, handlelength=1.4)
+    ax.margins(y=0.16)
     fig.suptitle("学習ありで基準を明確に上回るのは1週間先だけ、24時間先は横並び", x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig08_model_comparison.png")
@@ -131,7 +136,7 @@ def fig_skill_score(metrics: pd.DataFrame) -> None:
             ax.text(b.get_x() + b.get_width() / 2, v + (0.6 if v >= 0 else -0.6),
                     f"{v:+.0f}%", ha="center", va="bottom" if v >= 0 else "top",
                     fontsize=8, color=INK_SECONDARY)
-    ax.axhline(0, color=RED, lw=1.4)
+    ax.axhline(0, color=INK, lw=1.2)
     ax.set_xticks(x); ax.set_xticklabels([HORIZON_LABEL[h] for h in horizons])
     ax.set_ylabel("Persistence比の改善率（%）")
     ax.legend(ncol=3, fontsize=9)
@@ -200,7 +205,7 @@ def fig_nowcast(preds: pd.DataFrame, metrics: pd.DataFrame) -> None:
     # 左: データセット×入力条件のMAE比較
     conditions = [("TrainMean", "平均を答えるだけ"), ("LightGBM", "負荷のみ"),
                   ("LightGBM+外気温", "負荷＋外気温")]
-    colors = [INK_MUTED, BLUE, ORANGE]
+    colors = [G2, G4, ACCENT]  # 2016 / 2017 / 2018。結論に効く2018年だけ塗る
     x = np.arange(2)
     width = 0.26
     for i, ((key, label), c) in enumerate(zip(conditions, colors)):
@@ -222,7 +227,7 @@ def fig_nowcast(preds: pd.DataFrame, metrics: pd.DataFrame) -> None:
     if truth.empty:
         truth = g[g.model == "LightGBM"].sort_values("timestamp")
     axes[1].plot(truth.timestamp, truth.y_true, color=INK_SECONDARY, lw=1.3, label="実測")
-    for model, color, lbl in [("LightGBM", BLUE, "負荷のみ"), ("LightGBM+外気温", ORANGE, "負荷＋外気温")]:
+    for model, color, lbl in [("LightGBM", G3, "負荷のみ"), ("LightGBM+外気温", ACCENT, "負荷＋外気温")]:
         gm = g[g.model == model].sort_values("timestamp")
         if not gm.empty:
             axes[1].plot(gm.timestamp, gm.y_pred, color=color, lw=1.2, alpha=0.9, label=lbl)
@@ -246,8 +251,8 @@ def fig_event_detection(events: pd.DataFrame) -> None:
         x = np.arange(len(models))
         rec = [g[g.model == m]["recall"].iloc[0] for m in models]
         pre = [g[g.model == m]["precision"].iloc[0] for m in models]
-        ax.bar(x - 0.2, rec, 0.38, color=BLUE, label="再現率")
-        ax.bar(x + 0.2, pre, 0.38, color=ORANGE, label="適合率")
+        ax.bar(x - 0.2, rec, 0.38, color=ACCENT, label="再現率")
+        ax.bar(x + 0.2, pre, 0.38, color=G3, label="適合率")
         ax.set_xticks(x); ax.set_xticklabels(models, rotation=35, ha="right", fontsize=8)
         ax.set_ylim(0, 1)
         ax.set_title(HORIZON_LABEL[h], loc="left")
@@ -280,7 +285,7 @@ def fig_importance() -> None:
         inner = Xv[tr].index <= cut
         m.fit(Xv[tr][inner], yv[tr][inner], Xv[tr][~inner], yv[tr][~inner])
         imp = m.importance().head(15)[::-1]
-        ax.barh(range(len(imp)), imp.values, color=BLUE, height=0.7)
+        ax.barh(range(len(imp)), imp.values, color=G4, height=0.7)
         ax.set_yticks(range(len(imp)))
         ax.set_yticklabels(imp.index, fontsize=8)
         ax.set_xlabel("分割回数")
@@ -306,7 +311,7 @@ def fig_weather_relation() -> None:
     # 左上: 候補地点のスコア
     ax = fig.add_subplot(gs[0, 0])
     e2 = est[est.dataset == "ETTh2"].sort_values("score", ascending=False).head(8)[::-1]
-    colors = [ORANGE if c == DEFAULT_CITY else BLUE for c in e2.city]
+    colors = [ACCENT if c == DEFAULT_CITY else G2 for c in e2.city]
     ax.barh(range(len(e2)), e2.score, color=colors, height=0.7)
     ax.set_yticks(range(len(e2))); ax.set_yticklabels(e2.city, fontsize=8.5)
     ax.set_xlabel("整合度スコア")
@@ -321,19 +326,19 @@ def fig_weather_relation() -> None:
     from config import EXOG
     names, vals, cols = [], [], []
     for c in EXOG:
-        names.append(c); vals.append(abs(ot.corr(df2[c]))); cols.append(INK_MUTED)
+        names.append(c); vals.append(abs(ot.corr(df2[c]))); cols.append(G1)
     for c in ["temperature_2m", "dew_point_2m", "surface_pressure", "shortwave_radiation"]:
         names.append({"temperature_2m": "外気温", "dew_point_2m": "露点",
                       "surface_pressure": "気圧", "shortwave_radiation": "日射"}[c])
         vals.append(abs(ot.corr(ww[c])))
-        cols.append(ORANGE if c == "temperature_2m" else BLUE)
+        cols.append(ACCENT if c == "temperature_2m" else G3)
     order = np.argsort(vals)
     ax.barh(range(len(vals)), [vals[i] for i in order],
             color=[cols[i] for i in order], height=0.7)
     ax.set_yticks(range(len(vals))); ax.set_yticklabels([names[i] for i in order], fontsize=9)
     ax.set_xlabel("OTとの相関の絶対値（ETTh2）")
-    ax.axvline(0.22, color=RED, ls="--", lw=1.2)
-    ax.text(0.23, 0.5, "データ内の負荷変数の上限", color=RED, fontsize=8.5, va="bottom")
+    ax.axvline(0.22, color=BAD, ls="--", lw=1.2)
+    ax.text(0.23, 0.5, "データ内の負荷変数の上限", color=BAD, fontsize=8.5, va="bottom")
     ax.set_title("データに入っていた変数と、入っていなかった変数", loc="left", fontsize=11)
     ax.grid(axis="x")
 
@@ -342,9 +347,9 @@ def fig_weather_relation() -> None:
     ax = fig.add_subplot(gs[1, :])
     daily_ot = ot.resample("D").mean()
     daily_t = ww["temperature_2m"].resample("D").mean()
-    ax.fill_between(daily_ot.index, daily_t, daily_ot, color=BLUE, alpha=0.10, lw=0,
+    ax.fill_between(daily_ot.index, daily_t, daily_ot, color=ACCENT_PALE, alpha=.85, lw=0,
                     label="差＝負荷による温度上昇ぶん")
-    ax.plot(daily_t.index, daily_t, color=ORANGE, lw=1.5, label="外気温（日平均）")
+    ax.plot(daily_t.index, daily_t, color=ACCENT, lw=1.5, label="外気温（日平均）")
     ax.plot(daily_ot.index, daily_ot, color=INK_SECONDARY, lw=1.5, label="油温 OT（日平均）")
     ax.set_ylabel("温度（℃）")
     gap = (daily_ot - daily_t).mean()
@@ -370,20 +375,20 @@ def fig_quantile_tradeoff() -> None:
                                            "false_alarm_rate"]].mean().reset_index()
 
     fig, axes = plt.subplots(1, 3, figsize=(12.5, 4.2))
-    palette = {"LGBM q=0.5": "#9ec5f4", "LGBM q=0.7": BLUE, "LGBM q=0.8": "#1c5cab",
-               "LGBM q=0.9": VIOLET, "Persistence": INK_MUTED}
+    palette = {"LGBM q=0.5": G1, "LGBM q=0.7": G3, "LGBM q=0.8": G4,
+               "LGBM q=0.9": ACCENT, "Persistence": G2}
 
     # 左: 再現率と誤報率のトレードオフ（h=168）
     ax = axes[0]
     g = agg[agg.horizon == 168]
     for _, r in g.iterrows():
-        ax.scatter(r.false_alarm_rate, r.recall, s=110, color=palette.get(r.model, BLUE),
+        ax.scatter(r.false_alarm_rate, r.recall, s=110, color=palette.get(r.model, G3),
                    zorder=3, edgecolors="white", linewidths=1.5)
         ax.annotate(r.model.replace("LGBM ", ""), (r.false_alarm_rate, r.recall),
                     textcoords="offset points", xytext=(7, -3), fontsize=8.5,
                     color=INK_SECONDARY)
     gs_ = g[g.model.str.startswith("LGBM")].sort_values("false_alarm_rate")
-    ax.plot(gs_.false_alarm_rate, gs_.recall, color=BLUE, lw=1.2, alpha=0.5, zorder=2)
+    ax.plot(gs_.false_alarm_rate, gs_.recall, color=G3, lw=1.2, alpha=0.6, zorder=2)
     ax.set_xlabel("誤報率（正常時に警報を出す割合）")
     ax.set_ylabel("再現率（高温を捉えた割合）")
     ax.set_title("1週間先：見逃しと空振りの交換レート", loc="left", fontsize=11)
@@ -397,9 +402,9 @@ def fig_quantile_tradeoff() -> None:
         g = agg[agg.horizon == h]
         gl = g[g.model.str.startswith("LGBM")].sort_values("model")
         ax.plot(gl.MAE, gl.f1, marker=marker, ms=7, lw=1.4,
-                color=BLUE if h == 24 else VIOLET, label=HORIZON_LABEL[h])
+                color=G3 if h == 24 else ACCENT, label=HORIZON_LABEL[h])
         base = g[g.model == "Persistence"]
-        ax.scatter(base.MAE, base.f1, s=110, color=INK_MUTED, marker=marker,
+        ax.scatter(base.MAE, base.f1, s=110, color=G2, marker=marker,
                    zorder=3, edgecolors="white", linewidths=1.5)
     ax.set_xlabel("MAE（℃）← 小さいほど高精度")
     ax.set_ylabel("F1（イベント検知）")
@@ -415,7 +420,7 @@ def fig_quantile_tradeoff() -> None:
         g = agg[agg.horizon == h].set_index("model")
         vals = [g.loc[m, "recall"] if m in g.index else np.nan for m in models]
         bars = ax.bar(x + (i - 0.5) * 0.4, vals, 0.36,
-                      color=BLUE if h == 24 else VIOLET, label=HORIZON_LABEL[h])
+                      color=G3 if h == 24 else ACCENT, label=HORIZON_LABEL[h])
         for b, v in zip(bars, vals):
             ax.text(b.get_x() + b.get_width() / 2, v, f"{v:.2f}", ha="center", va="bottom",
                     fontsize=7.5, color=INK_SECONDARY)
@@ -445,7 +450,7 @@ def fig_dataset_comparison(metrics: pd.DataFrame) -> None:
             best = min(piv.loc[(ds, h), "LightGBM"], piv.loc[(ds, h), "LightGBM+外気温"])
             gains.append((1 - best / base) * 100)
         bars = ax.bar(x + (i - 0.5) * 0.38, gains, 0.34,
-                      color=[BLUE, ORANGE][i], label=ds)
+                      color=[G3, ACCENT][i], label=ds)
         for b, v in zip(bars, gains):
             ax.text(b.get_x() + b.get_width() / 2, v, f"{v:+.0f}%", ha="center", va="bottom",
                     fontsize=9, color=INK_SECONDARY)

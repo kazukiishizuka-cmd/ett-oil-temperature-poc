@@ -12,8 +12,8 @@ import matplotlib.dates as mdates
 from config import EXOG, FIGURE_DIR, RESULT_DIR, SPLIT_TRAIN_END, SPLIT_VAL_END
 from data import load_dataset, describe_integrity
 from plotting import (
-    AQUA, BAND_TEST, BAND_TRAIN, BAND_VAL, BLUE, GRID, INK_MUTED, INK_SECONDARY,
-    ORANGE, RED, setup_style, save,
+    ACCENT, BAD, BAND_TEST, BAND_TRAIN, BAND_VAL, G1, G2, G3, G4, GRID, INK,
+    INK_MUTED, INK_SECONDARY, setup_style, save,
 )
 
 TRAIN_END = pd.Timestamp(SPLIT_TRAIN_END)
@@ -37,7 +37,7 @@ def fig_ot_timeline() -> None:
         ax.plot(ot.index, ot.values, color=INK_MUTED, lw=0.5, alpha=0.7)
         # 30日移動平均で水準の推移を強調
         ax.plot(ot.index, ot.rolling(24 * 30, center=True, min_periods=100).mean(),
-                color=BLUE if name == "ETTh1" else AQUA, lw=2.2,
+                color=ACCENT if name == "ETTh1" else G4, lw=2.2,
                 label="30日移動平均")
         ax.set_ylabel("油温 OT")
         ax.set_title(f"{name}", loc="left", fontsize=12)
@@ -61,7 +61,7 @@ def fig_yearly_shift() -> None:
     for ax, name in zip(axes, ["ETTh1", "ETTh2"]):
         ot = load_dataset(name)["OT"]
         m = ot.groupby([ot.index.year, ot.index.month]).mean()
-        for year, color in zip([2016, 2017, 2018], [INK_MUTED, BLUE, ORANGE]):
+        for year, color in zip([2016, 2017, 2018], [G2, G4, ACCENT]):
             vals = [m.get((year, mo), np.nan) for mo in range(1, 13)]
             ax.plot(range(1, 13), vals, marker="o", ms=5, color=color, label=str(year))
         ax.set_xticks(range(1, 13))
@@ -81,7 +81,7 @@ def fig_missing_block() -> None:
     mask = (df[EXOG] == 0).all(axis=1)
     zero_idx = df.index[mask]
     fig, axes = plt.subplots(2, 1, figsize=(10, 5), sharex=True)
-    for col, color in zip(["HUFL", "MUFL", "LUFL"], [BLUE, AQUA, ORANGE]):
+    for col, color in zip(["HUFL", "MUFL", "LUFL"], [G2, G3, G4]):
         axes[0].plot(win.index, win[col], color=color, label=col)
     axes[0].axvspan(zero_idx.min(), zero_idx.max(), color="#fbe4e4", zorder=0)
     axes[0].set_ylabel("負荷")
@@ -90,7 +90,7 @@ def fig_missing_block() -> None:
     axes[1].axvspan(zero_idx.min(), zero_idx.max(), color="#fbe4e4", zorder=0)
     axes[1].set_ylabel("油温 OT")
     axes[1].text(zero_idx.min() + pd.Timedelta(hours=29), win["OT"].max(),
-                 "負荷6変数が厳密に0\n（58時間）", color=RED, ha="center", va="top", fontsize=10)
+                 "負荷6変数が厳密に0\n（58時間）", color=BAD, ha="center", va="top", fontsize=10)
     axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
     fig.suptitle("負荷は0なのに油温は変動し続ける＝欠測のゼロ埋め", x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
@@ -100,7 +100,7 @@ def fig_missing_block() -> None:
 def fig_quantization() -> None:
     """OTの記録分解能。ETTh1は0.07℃刻みに量子化されている。"""
     fig, axes = plt.subplots(1, 2, figsize=(11, 3.8))
-    for ax, name, color in zip(axes, ["ETTh1", "ETTh2"], [BLUE, AQUA]):
+    for ax, name, color in zip(axes, ["ETTh1", "ETTh2"], [ACCENT, G3]):
         ot = load_dataset(name)["OT"]
         d = np.diff(np.unique(ot.values))
         ax.hist(d, bins=60, color=color, alpha=0.85)
@@ -117,7 +117,7 @@ def fig_quantization() -> None:
 def fig_seasonality() -> None:
     """トレンド除去後の日内・曜日パターン。"""
     fig, axes = plt.subplots(1, 2, figsize=(11, 3.8))
-    for name, color in zip(["ETTh1", "ETTh2"], [BLUE, ORANGE]):
+    for name, color in zip(["ETTh1", "ETTh2"], [G4, ACCENT]):
         ot = load_dataset(name)["OT"]
         dev = ot - ot.rolling(24 * 30, center=True, min_periods=100).mean()
         axes[0].plot(range(24), dev.groupby(dev.index.hour).mean(), marker="o", ms=4, color=color, label=name)
@@ -143,7 +143,7 @@ def fig_acf() -> None:
     """OTの自己相関。直近値の情報量が支配的であることを示す。"""
     lags = list(range(1, 181))
     fig, ax = plt.subplots(figsize=(10, 3.8))
-    for name, color in zip(["ETTh1", "ETTh2"], [BLUE, ORANGE]):
+    for name, color in zip(["ETTh1", "ETTh2"], [G4, ACCENT]):
         ot = load_dataset(name)["OT"]
         acf = [ot.autocorr(k) for k in lags]
         ax.plot(lags, acf, color=color, label=name)
@@ -166,15 +166,15 @@ def fig_load_vs_ot() -> None:
     dif = df.diff().corr()["OT"].drop("OT")
     x = np.arange(len(EXOG))
     fig, axes = plt.subplots(1, 2, figsize=(11, 3.8))
-    axes[0].bar(x - 0.2, raw[EXOG], width=0.38, color=BLUE, label="水準（生の値）")
-    axes[0].bar(x + 0.2, dif[EXOG], width=0.38, color=ORANGE, label="変化量（1階差分）")
+    axes[0].bar(x - 0.2, raw[EXOG], width=0.38, color=G3, label="水準（生の値）")
+    axes[0].bar(x + 0.2, dif[EXOG], width=0.38, color=ACCENT, label="変化量（1階差分）")
     axes[0].set_xticks(x); axes[0].set_xticklabels(EXOG)
     axes[0].set_ylabel("OTとの相関係数")
     axes[0].axhline(0, color=GRID, lw=1)
     axes[0].legend()
     axes[0].set_title("同時刻の負荷とOTの相関", loc="left")
     sub = df.loc[df.index <= TRAIN_END]
-    axes[1].scatter(sub["HULL"], sub["OT"], s=3, color=BLUE, alpha=0.15, linewidths=0)
+    axes[1].scatter(sub["HULL"], sub["OT"], s=3, color=G4, alpha=0.15, linewidths=0)
     axes[1].set_xlabel("HULL（最も相関が高い負荷変数）")
     axes[1].set_ylabel("油温 OT")
     axes[1].set_title(f"散布図（train期間, r={sub['HULL'].corr(sub['OT']):.2f}）", loc="left")
