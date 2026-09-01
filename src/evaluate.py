@@ -54,10 +54,59 @@ def threshold_event_metrics(y_true: pd.Series, y_pred: pd.Series, threshold) -> 
     f1 = 2 * precision * recall / (precision + recall) if precision and recall and not np.isnan(precision) and not np.isnan(recall) and (precision + recall) > 0 else float("nan")
     return {
         "threshold": float(np.mean(threshold)),
-        "n_events": int(actual.sum()),
+        "n_hot_steps": int(actual.sum()),
         "TP": tp, "FP": fp, "FN": fn, "TN": tn,
         "precision": precision, "recall": recall, "f1": f1,
         "false_alarm_rate": fp / (fp + tn) if fp + tn else float("nan"),
+    }
+
+
+def event_level_metrics(y_true: pd.Series, y_pred: pd.Series, threshold,
+                        horizon_hours: float, step_hours: float = 1.0) -> dict:
+    """連続する高温時間帯を1つの設備イベントとして数え直す。
+
+    時刻単位の再現率は「高温だった時間の何割に警報を出せたか」を測る。
+    保全部門が知りたいのはそこではなく、
+      何件の高温事象に気づけたか / 何時間前に気づけたか / 警報は週に何回鳴るか
+    なので、イベント単位でも出す。
+
+    y_pred は「起点 t で予測した t+h の値」を t+h のインデックスに持つ前提。
+    したがってイベント開始時刻に警報が出ていれば horizon_hours 前に気づけたことになる。
+    """
+    if isinstance(threshold, pd.Series):
+        threshold = threshold.reindex(y_true.index)
+        keep = threshold.notna()
+        y_true, y_pred, threshold = y_true[keep], y_pred[keep], threshold[keep]
+
+    actual = (y_true >= threshold).astype(bool)
+    predicted = (y_pred >= threshold).astype(bool)
+
+    def _runs(flag: pd.Series):
+        grp = (flag != flag.shift()).cumsum()
+        return [g for _, g in flag.groupby(grp) if bool(g.iloc[0])]
+
+    events = _runs(actual)
+    alarms = _runs(predicted)
+
+    detected, lead_times = 0, []
+    for ev in events:
+        hit = predicted.reindex(ev.index).fillna(False)
+        if hit.any():
+            detected += 1
+            # イベント開始から数えて何ステップ目で最初の警報が出たか
+            delay_steps = int(hit.to_numpy().argmax())
+            lead_times.append(horizon_hours - delay_steps * step_hours)
+
+    span_hours = len(y_true) * step_hours
+    weeks = span_hours / (24 * 7) if span_hours else float("nan")
+    return {
+        "n_events": len(events),
+        "events_detected": detected,
+        "event_recall": detected / len(events) if events else float("nan"),
+        "median_lead_hours": float(np.median(lead_times)) if lead_times else float("nan"),
+        "n_alarms": len(alarms),
+        "alarms_per_week": len(alarms) / weeks if weeks else float("nan"),
+        "alarm_hours_ratio": float(predicted.mean()),
     }
 
 

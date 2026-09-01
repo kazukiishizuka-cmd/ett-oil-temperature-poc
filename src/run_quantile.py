@@ -29,19 +29,24 @@ VAL_MONTHS = 2
 def run(dataset: str = "ETTh1", horizons=(24, 168), use_external: bool = True) -> pd.DataFrame:
     df, miss = clean_dataset(load_dataset(dataset))
     ot = df[TARGET]
-    X_all = build_forecast_features(df, steps_per_day=DATASETS[dataset]["steps_per_day"])
-    if use_external:
-        X_all = pd.concat([X_all,
-                           weather_features(df.index, city=DEFAULT_CITY, future_known=True),
-                           holiday_flags(df.index)], axis=1)
+    base_X = build_forecast_features(df, steps_per_day=DATASETS[dataset]["steps_per_day"])
+    holidays = holiday_flags(df.index) if use_external else None
+    steps_per_hour = DATASETS[dataset]["steps_per_day"] / 24.0
     thr_series = rolling_threshold(ot)
     folds = expanding_folds(df.index)
     rows = []
 
     for h in horizons:
-        y_level = ot.shift(-h)
+        h_steps = int(round(h * steps_per_hour))
+        y_level = ot.shift(-h_steps)
         y_delta = y_level - ot
-        valid = (~miss) & y_delta.notna() & (~miss.shift(-h).fillna(False).astype(bool))
+        if use_external:
+            X_all = pd.concat([base_X,
+                               weather_features(df.index, city=DEFAULT_CITY, horizon=h_steps),
+                               holidays], axis=1)
+        else:
+            X_all = base_X
+        valid = (~miss) & y_delta.notna() & (~miss.shift(-h_steps).fillna(False).astype(bool))
         X, yt, yl, base = X_all[valid], y_delta[valid], y_level[valid], ot[valid]
 
         for fold in folds:

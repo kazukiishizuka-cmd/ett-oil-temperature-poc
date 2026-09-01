@@ -33,14 +33,16 @@ def run(dataset: str, horizons=None, kinds=("DLinear", "PatchTST"), seq_len: int
     horizons = horizons or HORIZONS_HOURLY
 
     records, preds_store = [], []
+    steps_per_hour = DATASETS[dataset]["steps_per_day"] / 24.0
     for h in horizons:
-        X, y, idx = make_windows(values, target, seq_len, h, valid_flags)
+        h_steps = int(round(h * steps_per_hour))
+        X, y, idx = make_windows(values, target, seq_len, h_steps, valid_flags)
         ts = index[idx]                    # 予測の基準時刻 t
         base = target[idx]                 # OT(t)（Persistence比較用）
         print(f"  窓データ: h={h}  {X.shape}")
 
         for fold in folds:
-            tr = ts <= fold.train_end - pd.Timedelta(hours=h)
+            tr = ts <= fold.train_end - pd.Timedelta(hours=h)  # gapは実時間で確保
             te = (ts >= fold.test_start) & (ts <= fold.test_end)
             if tr.sum() < 1000 or te.sum() == 0:
                 continue
@@ -50,7 +52,7 @@ def run(dataset: str, horizons=None, kinds=("DLinear", "PatchTST"), seq_len: int
 
             for kind in kinds:
                 t0 = time.time()
-                m = DeepForecaster(kind=kind, seq_len=seq_len, horizon=h)
+                m = DeepForecaster(kind=kind, seq_len=seq_len, horizon=h_steps)
                 m.fit(X[inner_tr], y[inner_tr], X[inner_val], y[inner_val])
                 pred = m.predict(X[te])
                 elapsed = time.time() - t0

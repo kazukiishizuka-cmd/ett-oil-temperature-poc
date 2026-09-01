@@ -68,38 +68,47 @@ def run_task(dataset: str, task: str, horizons=None, save_predictions: bool = Tr
         X_all = build_nowcast_features(df, steps_per_day=DATASETS[dataset]["steps_per_day"])
         horizons = [0]
 
-    if use_external:
-        # 外気温は「予測対象時刻の値が分かる」前提で入れる。
-        # 実運用では気象予報がこれに相当するので、予報が完全な場合の上限性能を測る位置づけ。
-        X_all = pd.concat([
-            X_all,
-            weather_features(df.index, city=external_city, future_known=True),
-            holiday_flags(df.index),
-        ], axis=1)
+    base_X = X_all
+    holidays = holiday_flags(df.index) if use_external else None
+    # ホライズンは時間で受け取る。行数へは粒度で換算する
+    # （ETTmは1行15分なので、24時間先は96行先になる）
+    steps_per_hour = DATASETS[dataset]["steps_per_day"] / 24.0
 
     folds = expanding_folds(df.index)
     records, preds_store = [], []
 
     for h in horizons:
+        h_steps = int(round(h * steps_per_hour))
         if task == "forecast":
-            y_level = ot.shift(-h)
+            y_level = ot.shift(-h_steps)
             y_target = y_level - ot          # Δを学習ターゲットにする
         else:
             y_level = ot
             y_target = ot
 
+        if use_external:
+            # 気象特徴量はホライズンごとに作り直す。
+            # 予報として使う列は予測対象時刻 t+h の値を起点 t の行へ割り当てる必要がある。
+            X_all = pd.concat([
+                base_X,
+                weather_features(df.index, city=external_city, horizon=h_steps),
+                holidays,
+            ], axis=1)
+        else:
+            X_all = base_X
+
         # 欠測ゼロ埋め区間と、ターゲットが欠ける行を除外
         valid = (~miss_mask) & y_target.notna() & y_level.notna()
         if task == "forecast":
             # 予測先が欠測区間に入る行も外す
-            valid &= ~miss_mask.shift(-h).fillna(False).astype(bool)
+            valid &= ~miss_mask.shift(-h_steps).fillna(False).astype(bool)
         X = X_all[valid]
         yt = y_target[valid]
         yl = y_level[valid]
         base = ot[valid]
 
         for fold in folds:
-            tr = X.index <= fold.train_end - pd.Timedelta(hours=h)
+            tr = X.index <= fold.train_end - pd.Timedelta(hours=h)  # gapは実時間で確保
             te = (X.index >= fold.test_start) & (X.index <= fold.test_end)
             X_tr, y_tr = X[tr], yt[tr]
             X_te = X[te]

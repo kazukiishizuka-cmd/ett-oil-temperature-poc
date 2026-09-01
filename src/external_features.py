@@ -16,8 +16,9 @@ from config import DATA_DIR
 
 EXTERNAL_DIR = DATA_DIR / "external"
 
-#: 観測地点の推定結果。候補16都市とOTの整合度から選んだ（fetch_weather.py 参照）
-DEFAULT_CITY = "Wuhan"
+#: 観測地点の推定結果。候補16都市とOTの整合度から選んだ（fetch_weather.py 参照）。
+#: 選定に使うのは最初の分割の学習期間までで、評価期間の油温は見ない。
+DEFAULT_CITY = "Nanjing"
 
 WEATHER_COLS = ["temperature_2m", "relative_humidity_2m", "wind_speed_10m",
                 "shortwave_radiation", "surface_pressure", "precipitation",
@@ -56,7 +57,7 @@ def holiday_flags(index: pd.DatetimeIndex) -> pd.DataFrame:
     for name, spans in CHINA_HOLIDAYS.items():
         flag = pd.Series(False, index=index)
         for lo, hi in spans:
-            flag |= (dates >= pd.Timestamp(lo)) & (dates <= pd.Timestamp(hi) + pd.Timedelta(days=1))
+            flag |= (dates >= pd.Timestamp(lo)) & (dates <= pd.Timestamp(hi))
         out[f"hol_{name}"] = flag.astype(int)
         is_any |= flag
     out["hol_any"] = is_any.astype(int)
@@ -73,40 +74,51 @@ def holiday_flags(index: pd.DatetimeIndex) -> pd.DataFrame:
 
 
 def weather_features(index: pd.DatetimeIndex, city: str = DEFAULT_CITY,
-                     lags=(0, 1, 3, 6, 12, 24), windows=(6, 24, 168),
-                     future_known: bool = True) -> pd.DataFrame:
+                     horizon: int = 0, obs_lags=(0, 1, 3, 6, 12, 24),
+                     windows=(6, 24, 168), use_forecast: bool = True) -> pd.DataFrame:
     """気象データを特徴量にする。
 
-    future_known=True は「予測時点で対象時刻の気象が分かっている」前提。
-    実運用では気象予報がこれに相当する。False の場合は t 時点までの実測しか使わない。
+    列を2種類に分ける。混ぜると「どの時刻の気象を使っているか」が追えなくなる。
+
+    wx_obs_* : 予測起点 t までに観測済みの実測値。ラグと移動統計はここから作る
+    wx_fc_*  : 予測対象時刻 t+horizon の値。実運用では気象予報が入る想定で、
+               ここでは実測値を予報の代理として使う（＝予報が完全な場合の上限性能）
+
+    horizon=0（ナウキャスト）では対象時刻＝起点なので wx_obs_*_lag0 がそれに当たる。
+    課題文の「t=Tの油温を予測する際には t=Tでの特徴量を使用して良い」に対応する。
     """
     w = load_weather(city).reindex(index).interpolate(method="time", limit_direction="both")
     parts = []
+
+    # --- 起点までの実測 ---
     for col in WEATHER_COLS:
         s = w[col]
-        d = {}
-        for k in lags:
-            if k == 0 and not future_known:
-                continue
-            d[f"wx_{col}_lag{k}"] = s.shift(k)
+        d = {f"wx_obs_{col}_lag{k}": s.shift(k) for k in obs_lags}
         for win in windows:
             r = s.rolling(win, min_periods=max(2, win // 4))
-            d[f"wx_{col}_rmean{win}"] = r.mean()
+            d[f"wx_obs_{col}_rmean{win}"] = r.mean()
             if col == "temperature_2m":
-                d[f"wx_{col}_rmin{win}"] = r.min()
-                d[f"wx_{col}_rmax{win}"] = r.max()
-        d[f"wx_{col}_diff1"] = s.diff(1)
-        d[f"wx_{col}_diff24"] = s.diff(24)
+                d[f"wx_obs_{col}_rmin{win}"] = r.min()
+                d[f"wx_obs_{col}_rmax{win}"] = r.max()
+        d[f"wx_obs_{col}_diff1"] = s.diff(1)
+        d[f"wx_obs_{col}_diff24"] = s.diff(24)
         parts.append(pd.DataFrame(d, index=index))
 
-    # 気温と油温の物理的な関係を直接表す量
     t = w["temperature_2m"]
-    extra = pd.DataFrame({
+    parts.append(pd.DataFrame({
         # 冷却の効きやすさ（風速×気温差の代理）
-        "wx_cooling_proxy": w["wind_speed_10m"] * (30.0 - t),
+        "wx_obs_cooling_proxy": w["wind_speed_10m"] * (30.0 - t),
         # 熱の蓄積（気温の指数移動平均を時定数違いで）
-        **{f"wx_temp_ewm{span}": t.ewm(span=span, min_periods=span // 4).mean()
+        **{f"wx_obs_temp_ewm{span}": t.ewm(span=span, min_periods=span // 4).mean()
            for span in (6, 24, 72, 168)},
-    }, index=index)
-    parts.append(extra)
+    }, index=index))
+
+    # --- 予測対象時刻の気象（予報の代理） ---
+    if use_forecast and horizon > 0:
+        d = {f"wx_fc_{col}": w[col].shift(-horizon) for col in WEATHER_COLS}
+        # 起点から対象時刻までに気温がどれだけ動くか。予報が持つ本質的な追加情報はここ
+        d["wx_fc_temp_delta"] = t.shift(-horizon) - t
+        d["wx_fc_temp_delta_abs"] = (t.shift(-horizon) - t).abs()
+        parts.append(pd.DataFrame(d, index=index))
+
     return pd.concat(parts, axis=1).replace([np.inf, -np.inf], np.nan)

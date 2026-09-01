@@ -95,7 +95,12 @@ def fetch_all(force: bool = False) -> dict:
     return out
 
 
-def estimate_location(weather: dict) -> pd.DataFrame:
+#: 地点推定に使ってよい期間の終端。最初の分割の学習期間の末尾に合わせている。
+#: これ以降は評価期間なので、地点選定に使うと外部データの選び方にリークが入る。
+SELECTION_CUTOFF = "2017-02-26 23:59:59"
+
+
+def estimate_location(weather: dict, cutoff: str = SELECTION_CUTOFF) -> pd.DataFrame:
     """候補地点の気温とOTの整合度を測り、観測地点を推定する。
 
     絶対水準のトレンドに引きずられないよう、日次平均に集約したうえで
@@ -103,19 +108,25 @@ def estimate_location(weather: dict) -> pd.DataFrame:
       2) 年周期を除いた残差どうしの相関
       3) 日内パターン（時刻別の平均偏差）の相関
     の3つを見る。
+
+    cutoff より後ろは使わない。評価期間の油温を見て最も適合する都市を選ぶと、
+    外部データの選定を通じて評価対象の正解値が漏れるため。
     """
     from data import clean_dataset, load_dataset
 
     rows = []
     ot_daily, ot_hourly_shape = {}, {}
+    cut = pd.Timestamp(cutoff)
     for ds in ["ETTh1", "ETTh2"]:
         df, _ = clean_dataset(load_dataset(ds))
+        df = df[df.index <= cut]
         ot = df["OT"]
         ot_daily[ds] = ot.resample("D").mean()
         dev = ot - ot.rolling(24 * 30, center=True, min_periods=100).mean()
         ot_hourly_shape[ds] = dev.groupby(dev.index.hour).mean()
 
     for name, w in weather.items():
+        w = w[w.index <= cut]
         t = w["temperature_2m"]
         t_daily = t.resample("D").mean()
         t_dev = t - t.rolling(24 * 30, center=True, min_periods=100).mean()
@@ -143,6 +154,7 @@ def main() -> None:
     weather = fetch_all()
     print(f"\n{len(weather)} 地点を取得")
     est = estimate_location(weather)
+    print(f"（地点選定に使う期間: 〜{SELECTION_CUTOFF} / 評価期間は使わない）")
     est.to_csv(RESULT_DIR / "weather_location_estimate.csv", index=False)
     pd.set_option("display.width", 200)
     for ds in ["ETTh1", "ETTh2"]:

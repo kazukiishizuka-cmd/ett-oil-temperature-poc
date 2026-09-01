@@ -12,7 +12,7 @@ import matplotlib.dates as mdates
 
 from config import FIGURE_DIR, RESULT_DIR, TARGET
 from data import clean_dataset, load_dataset
-from evaluate import rolling_threshold, threshold_event_metrics
+from evaluate import event_level_metrics, rolling_threshold, threshold_event_metrics
 from plotting import (
     ACCENT, ACCENT_PALE, BAD, G1, G2, G3, G4, G5, GRID, INK, INK_MUTED,
     INK_SECONDARY, RULE_STRONG, setup_style, save,
@@ -63,7 +63,12 @@ def load_all_predictions() -> pd.DataFrame:
 
 
 def event_table(preds: pd.DataFrame, dataset: str = "ETTh1") -> pd.DataFrame:
-    """高温イベントの事前検知性能を、時点ごとに動く閾値で評価する。"""
+    """高温イベントの事前検知性能を、時点ごとに動く閾値で評価する。
+
+    時刻単位（各タイムスタンプを1件と数える）と
+    イベント単位（連続する高温時間帯を1件と数える）の両方を出す。
+    保全部門が知りたいのは後者だが、両方ないとモデルの挙動が読めない。
+    """
     df, _ = clean_dataset(load_dataset(dataset))
     thr = rolling_threshold(df[TARGET])
     rows = []
@@ -73,12 +78,15 @@ def event_table(preds: pd.DataFrame, dataset: str = "ETTh1") -> pd.DataFrame:
         # 判定は「基準時刻tで計算できる閾値」で行う
         t = thr.reindex(g["timestamp"]).to_numpy()
         keep = ~np.isnan(t)
-        m = threshold_event_metrics(
-            pd.Series(g["y_true"].to_numpy()[keep]),
-            pd.Series(g["y_pred"].to_numpy()[keep]),
-            pd.Series(t[keep]),
-        )
-        rows.append({"horizon": h, "model": model, **m})
+        ts = pd.DatetimeIndex(g["timestamp"].to_numpy()[keep])
+        y_true = pd.Series(g["y_true"].to_numpy()[keep], index=ts)
+        y_pred = pd.Series(g["y_pred"].to_numpy()[keep], index=ts)
+        thr_s = pd.Series(t[keep], index=ts)
+        m = threshold_event_metrics(y_true.reset_index(drop=True),
+                                    y_pred.reset_index(drop=True),
+                                    thr_s.reset_index(drop=True))
+        ev = event_level_metrics(y_true, y_pred, thr_s, horizon_hours=float(h))
+        rows.append({"horizon": h, "model": model, **m, **ev})
     return pd.DataFrame(rows)
 
 
@@ -111,7 +119,7 @@ def fig_model_comparison(metrics: pd.DataFrame) -> None:
     ax.set_ylabel("MAE（℃, 4分割検証の平均）")
     ax.legend(ncol=4, loc="upper left", fontsize=8.5, columnspacing=1.2, handlelength=1.4)
     ax.margins(y=0.16)
-    fig.suptitle("学習ありで基準を明確に上回るのは1週間先だけ / 24時間先は横並び", x=0.01, ha="left", fontsize=14)
+    fig.suptitle("外気温を入れると全ホライズンで基準線を上回る / 24時間先 +32% / 1週間先 +36%", x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig08_model_comparison.png")
 
@@ -140,7 +148,7 @@ def fig_skill_score(metrics: pd.DataFrame) -> None:
     ax.set_xticks(x); ax.set_xticklabels([HORIZON_LABEL[h] for h in horizons])
     ax.set_ylabel("Persistence比の改善率（%）")
     ax.legend(ncol=3, fontsize=9)
-    fig.suptitle("改善幅は1週間先で+12% / 24時間先はほぼゼロ", x=0.01, ha="left", fontsize=14)
+    fig.suptitle("外気温込みなら24時間先でも +32% / 外気温なしでは +0.5%", x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig09_skill_score.png")
 
@@ -236,7 +244,7 @@ def fig_nowcast(preds: pd.DataFrame, metrics: pd.DataFrame) -> None:
     axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
     axes[1].set_title("ETTh2 test期間の推定値", loc="left", fontsize=11)
 
-    fig.suptitle("外気温を足すとETTh2の油温推定はMAE 3.2℃ / 平均予測の3分の1",
+    fig.suptitle("外気温を足すとETTh2の油温推定はMAE 2.1℃ / 平均予測の5分の1",
                  x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig12_nowcast.png")
@@ -258,7 +266,7 @@ def fig_event_detection(events: pd.DataFrame) -> None:
         ax.set_title(HORIZON_LABEL[h], loc="left")
     axes[0].set_ylabel("スコア")
     axes[0].legend(fontsize=9)
-    fig.suptitle("直近30日の上位5%を超える高温を1時間先なら約9割捉えられる", x=0.01, ha="left", fontsize=14)
+    fig.suptitle("直近30日の上位5%を超える高温を1時間先なら約8割捉えられる", x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig13_event_detection.png")
 
@@ -337,8 +345,10 @@ def fig_weather_relation() -> None:
             color=[cols[i] for i in order], height=0.7)
     ax.set_yticks(range(len(vals))); ax.set_yticklabels([names[i] for i in order], fontsize=9)
     ax.set_xlabel("OTとの相関の絶対値（ETTh2）")
-    ax.axvline(0.22, color=BAD, ls="--", lw=1.2)
-    ax.text(0.23, 0.5, "データ内の負荷変数の上限", color=BAD, fontsize=8.5, va="bottom")
+    # 基準線はこの図が使っているデータセットの実測から引く（他のデータセットの値を流用しない）
+    load_max = max(abs(ot.corr(df2[c])) for c in EXOG)
+    ax.axvline(load_max, color=BAD, ls="--", lw=1.2)
+    ax.text(load_max + 0.01, 0.5, "データ内の負荷変数の上限", color=BAD, fontsize=8.5, va="bottom")
     ax.set_title("データに入っていた変数と入っていなかった変数", loc="left", fontsize=11)
     ax.grid(axis="x")
 
@@ -359,7 +369,7 @@ def fig_weather_relation() -> None:
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
     ax.legend(ncol=3, loc="upper right", fontsize=9)
 
-    fig.suptitle("油温を最も説明する変数は外気温 r=0.96 / これはデータに入っていなかった",
+    fig.suptitle("油温を最も説明する変数は外気温 r=0.97 / これはデータに入っていなかった",
                  x=0.01, ha="left", fontsize=14)
     save(fig, FIGURE_DIR / "fig15_weather_relation.png")
 
@@ -430,7 +440,7 @@ def fig_quantile_tradeoff() -> None:
     ax.legend(fontsize=9)
     ax.set_title("分位点を上げると見逃しが減る", loc="left", fontsize=11)
 
-    fig.suptitle("目的関数を運用指標に合わせると1週間先の高温検知は16%→78%になる",
+    fig.suptitle("目的関数を運用指標に合わせると1週間先の高温検知は16%→81%になる",
                  x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig16_quantile_tradeoff.png")
@@ -458,7 +468,7 @@ def fig_dataset_comparison(metrics: pd.DataFrame) -> None:
     ax.set_xticks(x); ax.set_xticklabels([HORIZON_LABEL[h] for h in horizons])
     ax.set_ylabel("Persistence比の改善率（%）")
     ax.legend(title="変圧器")
-    fig.suptitle("同じ手法でも1時間先の改善幅は+6%と+57% / 1台の検証では判断できない",
+    fig.suptitle("同じ手法でも1時間先の改善幅は+8%と+58% / 1台の検証では判断できない",
                  x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig17_dataset_comparison.png")
@@ -469,21 +479,28 @@ def main() -> None:
     metrics = load_all_metrics()
     preds = load_all_predictions()
 
-    print("=== 統合結果: Forecast（4分割の平均） ===")
-    fc = metrics[metrics.task == "forecast"].pivot_table(
-        index="horizon", columns="model", values=["MAE", "RMSE", "R2"], aggfunc="mean")
-    print(fc.round(4).to_string())
+    for ds in ["ETTh1", "ETTh2"]:
+        sub = metrics[(metrics.task == "forecast") & (metrics.dataset == ds)]
+        if sub.empty:
+            continue
+        print(f"=== {ds} Forecast（4分割の平均） ===")
+        print(sub.pivot_table(index="horizon", columns="model",
+                              values=["MAE", "R2"], aggfunc="mean").round(4).to_string())
+        print()
 
-    print("\n=== Nowcast ===")
+    print("=== Nowcast ===")
     nc = metrics[metrics.task == "nowcast"].pivot_table(
-        index="model", values=["MAE", "RMSE", "R2"], aggfunc="mean")
+        index=["dataset", "model"], values=["MAE", "R2"], aggfunc="mean")
     print(nc.round(4).to_string())
 
     events = event_table(preds)
     events.to_csv(RESULT_DIR / "event_metrics.csv", index=False)
-    print("\n=== 高温イベントの事前検知（直近30日の95パーセンタイル超え） ===")
-    print(events[["horizon", "model", "n_events", "TP", "FP", "FN",
-                  "precision", "recall", "f1"]].round(3).to_string(index=False))
+    print("\n=== 高温イベントの事前検知: 時刻単位（ETTh1） ===")
+    print(events[["horizon", "model", "n_hot_steps", "precision", "recall", "f1"]]
+          .round(3).to_string(index=False))
+    print("\n=== 同: イベント単位（連続する高温時間帯を1件と数える） ===")
+    print(events[["horizon", "model", "n_events", "events_detected", "event_recall",
+                  "median_lead_hours", "alarms_per_week"]].round(2).to_string(index=False))
 
     metrics.to_csv(RESULT_DIR / "metrics_all.csv", index=False)
     print("\n図を生成:")
