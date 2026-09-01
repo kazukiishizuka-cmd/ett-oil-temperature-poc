@@ -238,8 +238,8 @@
       <div class="box warnbx">
         <h4>読み取れること</h4>
         <ul>
-          <li>24時間先の上回り幅は<b>4.2%</b>で誤差の範囲</li>
-          <li>1週間先は<b>16.8%</b>改善 / 長期ほど学習の価値が出る</li>
+          <li>24時間先の上回り幅は外気温込みで<b>32.3%</b> / 外気温なしでは<b>0.5%</b></li>
+          <li>1週間先は<b>36.1%</b>改善 / 予報を繋げるほど長期で効く</li>
           <li>Ridge・SeasonalNaiveは<b>基準線を大きく下回る</b></li>
         </ul>
       </div>
@@ -251,7 +251,7 @@
 <!-- 9. 結果: 深層モデル -->
 <div class="slide" data-page="9">
   <div class="chapter">4. 検証結果</div>
-  <div class="message">深層モデルは<span class="warn">このデータ規模で優位性なし</span> / Transformer系は計算コスト14倍で精度も下回る結果</div>
+  <div class="message">深層モデルは<span class="warn">このデータ規模で優位性なし</span> / Transformer系はLightGBM比で計算コスト42倍・精度も下回る結果</div>
   <div class="body col">
     <div class="cols">
       <div class="box">
@@ -260,9 +260,9 @@
           <tr><th>モデル</th><th class="num">MAE</th><th class="num">学習時間</th><th class="num">パラメータ</th></tr>
           <tr class="highlight"><td>LightGBM＋外気温</td><td class="num">1.308</td><td class="num">14秒</td><td class="num">—</td></tr>
           <tr><td>DLinear</td><td class="num">1.868</td><td class="num">3秒</td><td class="num">688</td></tr>
-          <tr><td>LightGBM</td><td class="num">1.924</td><td class="num">7秒</td><td class="num">—</td></tr>
+          <tr><td>LightGBM</td><td class="num">1.924</td><td class="num">1.7秒</td><td class="num">—</td></tr>
           <tr><td>Persistence</td><td class="num">1.933</td><td class="num">0秒</td><td class="num">0</td></tr>
-          <tr><td>PatchTST</td><td class="num">1.974</td><td class="num">100秒</td><td class="num">106,319</td></tr>
+          <tr><td>PatchTST</td><td class="num">1.974</td><td class="num">71.6秒</td><td class="num">106,319</td></tr>
         </table>
       </div>
       <div class="box accent">
@@ -319,12 +319,12 @@
       </div>
       <div class="box okbx">
         <h4>運用上の意味</h4>
-        <p><b>負荷だけでは平均を答えるのと同じ R²=−0.02 だったものが 外気温を足すと分散の75%を説明できるようになる</b></p>
+        <p><b>負荷だけでは平均を答えるのと同じ R²=−0.02 だったものが 外気温を足すと分散の85%を説明できるようになる</b></p>
         <p>これは「この負荷・この外気温なら油温は何℃が正常か」という基準線が引けることを意味する<br>実測との乖離を監視すれば 固定閾値では不可能な<b>季節・負荷条件によらない異常検知</b>が成立する</p>
       </div>
       <div class="box warnbx">
         <h4>ETTh1で成立しない理由</h4>
-        <p>ETTh1はR²=−1.75と依然として実用水準にない<br>p.5で示した<b>2年間のレベルシフトが外気温で説明できない</b>ため<br>機器側の改修や計測系の変更が疑われ その情報なしには基準線を引けない<br><b>2台で結論が割れること自体が 導入前に台ごとの素性確認が要ることを示す</b></p>
+        <p>ETTh1はR²=−1.66と依然として実用水準にない<br>p.5で示した<b>2年間のレベルシフトが外気温で説明できない</b>ため<br>機器側の改修や計測系の変更が疑われ その情報なしには基準線を引けない<br><b>2台で結論が割れること自体が 導入前に台ごとの素性確認が要ることを示す</b></p>
       </div>
     </div>
   </div>
@@ -438,7 +438,7 @@
       </div>
     </div>
   </div>
-  <div class="footnote">高温イベント＝直近30日の95パーセンタイルを超える時間帯 / 連続する時間帯を1件と数える / リードは初回警報からイベント開始までの中央値 / 警報回数も連続を1件と数える</div>
+  <div class="footnote">高温イベント＝直近30日の95パーセンタイルを超える時間帯 / 連続する時間帯を1件と数える / 検知＝イベント区間内で一度でも警報が出たこと / リード＝警報を出した起点から対象時刻までの猶予でイベント開始と同時に鳴れば予測ホライズンと同値 / 警報回数も連続を1件と数える</div>
 </div>
 
 <!-- 14. 結果: 台差 -->
@@ -520,7 +520,7 @@
       </div>
       <div class="box warnbx">
         <h4>② 観測地点は推定値</h4>
-        <p>ETDatasetは地点を公開していない<br>16都市との整合度で武漢を選んだが 武漢0.921と南京0.920はほぼ同点で確定はできない<br><b>実地点が判明すれば相関はさらに上がる可能性が高い</b></p>
+        <p>ETDatasetは地点を公開していない<br>16都市との整合度で南京を選んだが 南京0.919と武漢0.918はほぼ同点で確定はできない<br><b>実地点が判明すれば相関はさらに上がる可能性が高い</b></p>
       </div>
       <div class="box warnbx">
         <h4>③ 単位と機器仕様が不明</h4>
@@ -597,7 +597,7 @@
         <h4>期待できる成果</h4>
         <ul>
           <li>異常検知：季節・負荷によらない基準線 / ETTh2相当の設備で R²=0.854</li>
-          <li>予兆警報：1週間先の高温を78%捉える（誤報率33%との交換）</li>
+          <li>予兆警報：1週間先の高温を81%捉える / 誤報率16.5%との交換</li>
           <li>いずれも<b>既存の閾値監視では実現できない</b>機能</li>
         </ul>
       </div>
@@ -734,7 +734,7 @@
       </div>
     </div>
   </div>
-  <div class="footnote">計算コストの比較（24時間先・1分割あたり）— Persistence 0秒／DLinear 3秒・688パラメータ／LightGBM＋外気温 14秒／PatchTST 100秒・106,319パラメータ</div>
+  <div class="footnote">計算コストの比較（24時間先・1分割あたり）— Persistence 0秒／LightGBM 1.7秒／DLinear 4.0秒・688パラメータ／LightGBM＋外気温 13.7秒／PatchTST 71.6秒・106,319パラメータ</div>
 </div>
 
 <!-- 21. Appendix: 運用指標の全結果 -->

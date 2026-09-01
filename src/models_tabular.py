@@ -52,13 +52,18 @@ class SeasonalNaiveDelta(BaseModel):
     """
     name = "SeasonalNaive"
 
-    def __init__(self, horizon: int, period: int = 24):
+    def __init__(self, horizon: int, period_hours: int = 24, steps_per_hour: float = 1.0):
+        """horizon と period は時間で受け取り、参照するラグ列は行数へ換算する。
+
+        ETTm のように1行が15分のデータでは、周期24を行数として使うと
+        「前日の同時刻」ではなく「6時間前」を見てしまう。
+        """
         self.horizon = horizon
-        self.period = period
-        k = int(np.ceil(horizon / period))
+        self.period_hours = period_hours
+        k = int(np.ceil(horizon / period_hours))
         # t 時点で観測済みにするため period*k だけ遡る
-        self.back_now = period * k
-        self.back_future = period * k - horizon
+        self.back_now = int(round(period_hours * k * steps_per_hour))
+        self.back_future = int(round((period_hours * k - horizon) * steps_per_hour))
 
     def fit(self, X, y, X_val=None, y_val=None):
         self.cols_ = (f"ot_lag{self.back_now}", f"ot_lag{self.back_future}")

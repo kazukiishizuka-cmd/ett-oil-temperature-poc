@@ -40,11 +40,11 @@ def _inner_val_split(X_tr: pd.DataFrame, y_tr: pd.Series):
     return X_tr[tr], y_tr[tr], X_tr[~tr], y_tr[~tr]
 
 
-def _build_models(task: str, horizon: int) -> list:
+def _build_models(task: str, horizon: int, steps_per_hour: float = 1.0) -> list:
     if task == "forecast":
         return [
             ZeroDelta(),
-            SeasonalNaiveDelta(horizon=horizon),
+            SeasonalNaiveDelta(horizon=horizon, steps_per_hour=steps_per_hour),
             RidgeModel(alpha=10.0),
             LightGBMModel(),
         ]
@@ -117,7 +117,7 @@ def run_task(dataset: str, task: str, horizons=None, save_predictions: bool = Tr
 
             X_fit, y_fit, X_val, y_val = _inner_val_split(X_tr, y_tr)
 
-            for model in _build_models(task, h):
+            for model in _build_models(task, h, steps_per_hour):
                 t0 = time.time()
                 # early stopping を使わないモデルには学習区間を削らず全量を渡す
                 if model.needs_validation:
@@ -146,7 +146,7 @@ def run_task(dataset: str, task: str, horizons=None, save_predictions: bool = Tr
                         "y_true": truth.to_numpy(), "y_pred": pred_level.to_numpy(),
                     }))
             print(f"  [{dataset}/{task}/h={h}/{fold.name}] "
-                  + " ".join(f"{r['model']}:{r['MAE']:.3f}" for r in records[-len(_build_models(task, h)):]))
+                  + " ".join(f"{r['model']}:{r['MAE']:.3f}" for r in records[-len(_build_models(task, h, steps_per_hour)):]))
 
     out = pd.DataFrame(records)
     if preds_store:

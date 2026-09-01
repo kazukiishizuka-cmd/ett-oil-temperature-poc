@@ -18,11 +18,11 @@ from evaluate import regression_metrics
 from models_deep import DeepForecaster, make_windows
 from splits import expanding_folds
 
-SEQ_LEN = 336  # 14日ぶんの窓
+SEQ_LEN_HOURS = 336  # 14日ぶんの窓。行数へはデータ粒度で換算する
 VAL_MONTHS = 2
 
 
-def run(dataset: str, horizons=None, kinds=("DLinear", "PatchTST"), seq_len: int = SEQ_LEN) -> pd.DataFrame:
+def run(dataset: str, horizons=None, kinds=("DLinear", "PatchTST"), seq_len_hours: int = SEQ_LEN_HOURS) -> pd.DataFrame:
     raw = load_dataset(dataset)
     df, miss_mask = clean_dataset(raw)
     values = df[ALL_COLS].to_numpy(dtype=np.float32)
@@ -34,6 +34,8 @@ def run(dataset: str, horizons=None, kinds=("DLinear", "PatchTST"), seq_len: int
 
     records, preds_store = [], []
     steps_per_hour = DATASETS[dataset]["steps_per_day"] / 24.0
+    seq_len = int(round(seq_len_hours * steps_per_hour))
+    print(f"  入力窓: {seq_len_hours}時間 = {seq_len}行")
     for h in horizons:
         h_steps = int(round(h * steps_per_hour))
         X, y, idx = make_windows(values, target, seq_len, h_steps, valid_flags)
@@ -84,9 +86,9 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", default="ETTh1")
     ap.add_argument("--horizons", nargs="+", type=int, default=None)
-    ap.add_argument("--seq-len", type=int, default=SEQ_LEN)
+    ap.add_argument("--seq-len-hours", type=int, default=SEQ_LEN_HOURS)
     args = ap.parse_args()
-    res = run(args.dataset, horizons=args.horizons, seq_len=args.seq_len)
+    res = run(args.dataset, horizons=args.horizons, seq_len_hours=args.seq_len_hours)
     print("\n=== fold平均 MAE ===")
     print(res.pivot_table(index=["horizon"], columns="model", values="MAE", aggfunc="mean").round(4).to_string())
 

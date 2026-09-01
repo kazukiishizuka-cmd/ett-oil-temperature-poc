@@ -70,8 +70,14 @@ def event_level_metrics(y_true: pd.Series, y_pred: pd.Series, threshold,
       何件の高温事象に気づけたか / 何時間前に気づけたか / 警報は週に何回鳴るか
     なので、イベント単位でも出す。
 
-    y_pred は「起点 t で予測した t+h の値」を t+h のインデックスに持つ前提。
-    したがってイベント開始時刻に警報が出ていれば horizon_hours 前に気づけたことになる。
+    渡される系列のインデックスは**予測起点 t** で、値は t+h の実測と予測。
+    したがってここで数えるのは「起点の軸で見た高温区間」であり、
+    イベント開始の起点で警報が出ていれば horizon_hours 前に気づけたことになる。
+    d ステップ遅れて最初の警報が出た場合のリードタイムは horizon_hours − d。
+
+    検知の定義は「イベント区間内で一度でも警報が出たか」。
+    対象時刻の軸でイベント開始より前に出た警報は数えていないため、
+    実運用の「開始前に鳴ったか」とは厳密には異なる。資料にもこの定義を明記すること。
     """
     if isinstance(threshold, pd.Series):
         threshold = threshold.reindex(y_true.index)

@@ -62,17 +62,33 @@ def _rollings(s: pd.Series, windows, prefix: str) -> pd.DataFrame:
     return pd.DataFrame(out, index=s.index)
 
 
+def _to_steps(hours, steps_per_day: int):
+    """時間で指定されたラグ・窓を、そのデータ粒度の行数へ換算する。
+
+    ETTh は1行1時間だが ETTm は15分なので、24 をそのまま行数として使うと
+    「24時間前」のつもりが「6時間前」になる。指定は常に時間で持ち、
+    行数への変換はここに集約する。
+    """
+    sph = steps_per_day / 24.0
+    return tuple(sorted({max(1, int(round(h * sph))) if h > 0 else 0 for h in hours}))
+
+
 def build_forecast_features(
     df: pd.DataFrame,
     steps_per_day: int = 24,
-    ot_lags=(0, 1, 2, 3, 6, 12, 24, 23, 48, 167, 168),
-    exog_lags=(0, 1, 2, 3, 6, 12, 24),
-    windows=(3, 6, 24, 168),
+    ot_lag_hours=(0, 1, 2, 3, 6, 12, 23, 24, 48, 167, 168),
+    exog_lag_hours=(0, 1, 2, 3, 6, 12, 24),
+    window_hours=(3, 6, 24, 168),
 ) -> pd.DataFrame:
     """将来予測用の特徴量。t=T までに観測済みの情報だけを使う。
 
     OT の自己履歴（ラグ・移動統計・変化率）が主役で、負荷は補助情報として入る。
+    ラグと窓は時間で指定し、データ粒度に応じて行数へ換算する。
     """
+    ot_lags = _to_steps(ot_lag_hours, steps_per_day)
+    exog_lags = _to_steps(exog_lag_hours, steps_per_day)
+    windows = _to_steps(window_hours, steps_per_day)
+    sph = steps_per_day / 24.0
     parts = [calendar_features(df.index)]
 
     ot = df[TARGET]
@@ -81,21 +97,21 @@ def build_forecast_features(
 
     # 変化量・変化率（水準ではなく動きを捉えるため）
     diffs = {}
-    for k in (1, 2, 3, 6, 12, 24, 168):
+    for k in _to_steps((1, 2, 3, 6, 12, 24, 168), steps_per_day):
         diffs[f"ot_diff{k}"] = ot.diff(k)
     diffs["ot_diff1_diff1"] = ot.diff(1).diff(1)  # 加速度
     parts.append(pd.DataFrame(diffs, index=df.index))
 
     # 直近の水準からの乖離（トレンド非定常に対する正規化）
     dev = {}
-    for w in (24, 168, 720):
+    for w in _to_steps((24, 168, 720), steps_per_day):
         dev[f"ot_dev{w}"] = ot - ot.rolling(w, min_periods=w // 4).mean()
     parts.append(pd.DataFrame(dev, index=df.index))
 
     for col in EXOG:
         s = df[col]
         parts.append(_lags(s, exog_lags, col.lower()))
-        parts.append(_rollings(s, (24, 168), col.lower()))
+        parts.append(_rollings(s, _to_steps((24, 168), steps_per_day), col.lower()))
         parts.append(pd.DataFrame({f"{col.lower()}_diff1": s.diff(1),
                                    f"{col.lower()}_diff24": s.diff(steps_per_day)}, index=df.index))
 
@@ -109,7 +125,7 @@ def build_forecast_features(
         "load_ratio": (useless / total.abs().clip(lower=1.0)).clip(-20, 20),
     }, index=df.index)
     parts.append(agg)
-    parts.append(_rollings(agg["load_total"], (24, 168), "load_total"))
+    parts.append(_rollings(agg["load_total"], _to_steps((24, 168), steps_per_day), "load_total"))
 
     return _finalize(pd.concat(parts, axis=1))
 
@@ -117,14 +133,17 @@ def build_forecast_features(
 def build_nowcast_features(
     df: pd.DataFrame,
     steps_per_day: int = 24,
-    exog_lags=(0, 1, 2, 3, 6, 12, 24, 48),
-    windows=(3, 6, 24, 168),
+    exog_lag_hours=(0, 1, 2, 3, 6, 12, 24, 48),
+    window_hours=(3, 6, 24, 168),
 ) -> pd.DataFrame:
     """同時刻推定用の特徴量。OT の自己履歴を一切使わない。
 
     t=T の負荷を使ってよいという課題の許可を、ここで本質的に活用する。
     油温は熱容量で遅れて追随するため、負荷の移動平均・積算が効くはず、という仮説。
+    ラグと窓は時間で指定し、データ粒度に応じて行数へ換算する。
     """
+    exog_lags = _to_steps(exog_lag_hours, steps_per_day)
+    windows = _to_steps(window_hours, steps_per_day)
     parts = [calendar_features(df.index)]
 
     for col in EXOG:
@@ -145,7 +164,7 @@ def build_nowcast_features(
     parts.append(agg)
     # 熱の蓄積を表す積算負荷（指数移動平均を時定数違いで複数）
     ewm = {}
-    for span in (6, 24, 72, 168, 720):
+    for span in _to_steps((6, 24, 72, 168, 720), steps_per_day):
         ewm[f"load_total_ewm{span}"] = agg["load_total"].ewm(span=span, min_periods=span // 4).mean()
     parts.append(pd.DataFrame(ewm, index=df.index))
     parts.append(_rollings(agg["load_total"], windows, "load_total"))
