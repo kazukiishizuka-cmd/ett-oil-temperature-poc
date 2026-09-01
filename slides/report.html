@@ -24,35 +24,35 @@
 <!-- 2. エグゼクティブサマリ -->
 <div class="slide" data-page="2">
   <div class="chapter">エグゼクティブサマリ</div>
-  <div class="message">価値の源泉は<span class="em">予測精度の向上ではなく用途の絞り込みと外気温データの接続</span></div>
+  <div class="message">精度の改善は24時間先 <span class="em">+0.5%</span> / 1週間先 <span class="em">+16.8%</span> / 油温を使わない推定は ETTh2 で <span class="em">R²=0.75</span></div>
   <div class="body col">
     <div class="stat-row">
       <div class="stat">
-        <div class="label">結論①　精度改善は限定的</div>
+        <div class="label">精度の改善幅 / 24時間先</div>
         <div class="value red">+0.5<span style="font-size:15pt">%</span></div>
         <div class="note">24時間先の予測で162個の特徴量を使った学習モデルが「今と同じ温度」と言い張るだけの手法に対して得た改善幅 / 1週間先でも上限は +16.8%</div>
       </div>
       <div class="stat">
-        <div class="label">結論②　異常検知の基準線は成立する</div>
+        <div class="label">油温を使わない推定 / ETTh2</div>
         <div class="value blue">R² 0.75</div>
         <div class="note">ETTh2 / 油温センサを一切使わず負荷＋外気温だけで推定した精度 / 負荷のみでは R²=−0.02 で平均予測と同等</div>
       </div>
       <div class="stat">
-        <div class="label">結論③　欠けていた変数は外気温</div>
+        <div class="label">外気温と油温の相関</div>
         <div class="value blue">r = 0.96</div>
-        <div class="note">外気温と油温の相関 / データに含まれる負荷6変数の相関は最大 0.22 / 最も効く変数が最初から入っていない</div>
+        <div class="note">外気温と油温の相関 / データに含まれる負荷6変数の相関は最大 0.22 / 最も説明力の高い変数が最初から入っていない</div>
       </div>
     </div>
     <div class="cols">
       <div class="box accent">
-        <h4>この結果をどう読むか</h4>
+        <h4>基準線が強い理由</h4>
         <p>油温は自己相関がきわめて高い / 1時間前との相関 0.994<br>直近値をそのまま返す単純な手法が強い基準線になる<br>ここを起点にするとモデルの巧拙で得られる上積みは小さい</p>
       </div>
       <div class="box okbx">
-        <h4>それでも価値が出る2つの用途</h4>
+        <h4>クライアントの課題との対応</h4>
         <ul>
-          <li><b>異常検知の基準線</b>：「この条件ならこの温度が正常」を推定し実測との乖離で異常を検出</li>
-          <li><b>高温予兆の警報</b>：目的関数を運用指標に合わせると1週間先の高温検知率は 16%→78%</li>
+          <li><b>課題① 閾値監視の複雑化</b>：負荷と外気温から正常温度を推定 / ETTh2 で R²=0.75・ETTh1 で −1.75</li>
+          <li><b>課題② 予防保全への移行</b>：1週間先の高温検知は再現率 0.779 / 誤報率 33.2%</li>
         </ul>
       </div>
       <div class="box">
@@ -71,25 +71,29 @@
 <!-- 3. 検証の設計 -->
 <div class="slide" data-page="3">
   <div class="chapter">1. 検証の設計</div>
-  <div class="message">精度ではなく<span class="em">運用上の2つの問い</span>に分けた検証設計</div>
+  <div class="message">課題文に示された<span class="em">2つの課題</span>に検証タスクを対応</div>
   <div class="body col">
-    <div class="cols">
+    <div class="box pale">
+      <h4>課題文より</h4>
+      <p><b>①</b> 負荷変動や外部要因の影響により 温度変動が複雑化している　　<b>②</b> 事後対応型の保全から 予測に基づく予防保全へ移行したい</p>
+    </div>
+    <div class="cols" style="flex:0 1 auto">
       <div class="box accent">
-        <h4><span class="tag blue">タスクA</span>ナウキャスト（同時刻推定）</h4>
+        <h4><span class="tag blue">課題① → タスクA</span>ナウキャスト（同時刻推定）</h4>
         <p><b>問い：</b>油温計を見ずにいま油温が何℃のはずかを当てられるか</p>
         <p><b>入力：</b>同時刻を含む負荷6変数と外気温 / <u>油温の履歴は一切使わない</u></p>
-        <p><b>用途：</b>センサ故障時の代替値 /「この条件ならこの温度が正常」という基準線を作り実測との乖離で異常を検出</p>
+        <p><b>課題への対応：</b>負荷と外気温から「この条件での正常温度」を推定 / 固定閾値と違い季節と負荷条件によらず乖離を検出できる</p>
       </div>
       <div class="box accent">
-        <h4><span class="tag blue">タスクB</span>フォーキャスト（将来予測）</h4>
+        <h4><span class="tag blue">課題② → タスクB</span>フォーキャスト（将来予測）</h4>
         <p><b>問い：</b>h時間後の油温を当てられるか（h = 1 / 24 / 168）</p>
         <p><b>入力：</b>時刻tまでに観測済みの全変数（油温の履歴を含む）</p>
-        <p><b>用途：</b>予防保全 / 高温域に入る前に点検・負荷抑制の判断材料を出す</p>
+        <p><b>課題への対応：</b>高温域に入る前に点検・負荷抑制の判断材料を出す / 事後対応から予測に基づく保全へ</p>
       </div>
     </div>
     <div class="box pale">
       <h4>課題文の但し書きの解釈</h4>
-      <p>「t=Tの油温を予測する際には、t=Tでの特徴量を使用して良い」——この許可は<b>タスクAでこそ本質的に効く</b><br>同時刻の負荷を使えるからこそ「今この瞬間の正常温度」を推定でき 異常検知の基準線が成立する<br>タスクBでは同時刻の情報は自明に利用可能なので この但し書きは制約の緩和として機能しない<br><b>そこで両タスクを分けて検証し 許可の効き方を切り分けた</b></p>
+      <p>「t=Tの油温を予測する際には、t=Tでの特徴量を使用して良い」——この許可で<b>使える入力が増えるのはタスクAだけ</b><br>同時刻の負荷を使えるからこそ「今この瞬間の正常温度」を推定でき 異常検知の基準線が成立する<br>タスクBは時刻tまでの全情報を使うため この許可は入力を何も増やさない<br><b>そこで両タスクを分けて 許可が入力を増やす側とそうでない側を切り分けた</b></p>
     </div>
   </div>
   <div class="footnote">課題文に「不明点は合理的な仮定を置き、明記した上で進める」とあるため 置いた仮定は Appendix に一覧化</div>
@@ -163,7 +167,7 @@
       </div>
       <div class="box okbx">
         <h4>ここから立てた仮説</h4>
-        <p>油温 ≒ 外気温 ＋ 負荷による温度上昇 という物理を踏まえると<b>最も効くはずの変数がデータに入っていない</b><br>日内パターン（早朝に最低・午後に最高）も外気温の形そのもの<br><b>→ 外部データで検証 / p.10</b></p>
+        <p>油温 ≒ 外気温 ＋ 負荷による温度上昇 という物理を踏まえると<b>最も説明力が高いはずの変数がデータに入っていない</b><br>日内パターン（早朝に最低・午後に最高）も外気温の形そのもの<br><b>→ 外部データで検証 / p.10</b></p>
       </div>
     </div>
   </div>
@@ -172,14 +176,14 @@
 <!-- 7. アプローチ -->
 <div class="slide" data-page="7">
   <div class="chapter">3. アプローチ</div>
-  <div class="message">EDAで得た3つの性質に対する<span class="em">設計上の対処</span></div>
+  <div class="message">予測対象は絶対値ではなく<span class="em">変化量</span> / 評価は4分割で全季節</div>
   <div class="body col">
     <table>
       <tr><th style="width:23%">データの性質</th><th style="width:30%">設計上の対処</th><th>理由</th></tr>
       <tr>
         <td><b>レベルシフト</b><br>学習16.6℃ / 評価8.6℃</td>
         <td><b>予測対象を差分 Δ = OT(t+h) − OT(t) にする</b></td>
-        <td>絶対値を学習すると評価期間で系統誤差が出る / 勾配ブースティング木は学習範囲外へ外挿できないため致命的 / 深層モデル側は窓ごとの可逆正規化 RevIN で同じ効果を得ている</td>
+        <td>絶対値を学習すると評価期間で系統誤差が出る / 勾配ブースティング木は学習範囲外へ外挿できないため致命的 / 深層モデル側は窓ごとの可逆正規化 RevIN で同じ対処になっている</td>
       </tr>
       <tr>
         <td><b>季節による難易度の差</b></td>
@@ -225,9 +229,9 @@
           <tr><td>Persistence</td><td class="num">0.552</td><td class="num">1.933</td><td class="num">2.970</td></tr>
           <tr><td>SeasonalNaive</td><td class="num">0.742</td><td class="num">2.967</td><td class="num">5.085</td></tr>
           <tr><td>Ridge</td><td class="num">0.621</td><td class="num">3.059</td><td class="num">5.297</td></tr>
-          <tr><td>PatchTST</td><td class="num">0.550</td><td class="num">1.975</td><td class="num">2.763</td></tr>
+          <tr><td>PatchTST</td><td class="num">0.550</td><td class="num">1.974</td><td class="num">2.763</td></tr>
           <tr><td>DLinear</td><td class="num">0.544</td><td class="num">1.868</td><td class="num">2.761</td></tr>
-          <tr><td>LightGBM</td><td class="num">0.526</td><td class="num">1.925</td><td class="num">2.621</td></tr>
+          <tr><td>LightGBM</td><td class="num">0.526</td><td class="num">1.924</td><td class="num">2.621</td></tr>
           <tr class="highlight"><td>LightGBM＋外気温</td><td class="num">0.518</td><td class="num">1.851</td><td class="num">2.469</td></tr>
         </table>
       </div>
@@ -256,14 +260,14 @@
           <tr><th>モデル</th><th class="num">MAE</th><th class="num">学習時間</th><th class="num">パラメータ</th></tr>
           <tr class="highlight"><td>LightGBM＋外気温</td><td class="num">1.851</td><td class="num">14秒</td><td class="num">—</td></tr>
           <tr><td>DLinear</td><td class="num">1.868</td><td class="num">3秒</td><td class="num">688</td></tr>
-          <tr><td>LightGBM</td><td class="num">1.925</td><td class="num">7秒</td><td class="num">—</td></tr>
+          <tr><td>LightGBM</td><td class="num">1.924</td><td class="num">7秒</td><td class="num">—</td></tr>
           <tr><td>Persistence</td><td class="num">1.933</td><td class="num">0秒</td><td class="num">0</td></tr>
-          <tr><td>PatchTST</td><td class="num">1.975</td><td class="num">100秒</td><td class="num">106,319</td></tr>
+          <tr><td>PatchTST</td><td class="num">1.974</td><td class="num">100秒</td><td class="num">106,319</td></tr>
         </table>
       </div>
       <div class="box accent">
         <h4>なぜこうなるか</h4>
-        <p>学習に使える有効データは<b>1時間粒度で約17,000点</b> / Transformerが表現力を発揮するには少ない<br>加えて系列の支配的な構造が「直近値への強い依存＋日周期」という単純なもので<b>長距離の依存関係を捉える機構が活きる場面が乏しい</b></p>
+        <p>学習に使える有効データは<b>1時間粒度で約17,000点</b> / Transformerが表現力を発揮するには少ない<br>加えて系列の支配的な構造が「直近値への強い依存＋日周期」という単純なもので<b>長距離の依存関係を捉える機構が精度に結びつく場面が乏しい</b></p>
         <p>DLinearがPatchTSTを上回るのは 線形分解モデルが長期予測ベンチマークでTransformerを上回るという既報 Zeng et al., 2023 と整合する</p>
       </div>
       <div class="box okbx">
@@ -279,7 +283,7 @@
     </div>
     <div class="box pale">
       <h4>実装上の補足</h4>
-      <p>DLinear・PatchTSTはいずれも窓ごとの可逆正規化 RevIN を入れており 表形式モデル側で差分を予測しているのと同じ非定常対策を効かせている / この処理を外すと両モデルとも大きく劣化する / 学習時間はApple M系GPU（MPS）での実測値</p>
+      <p>DLinear・PatchTSTはいずれも窓ごとの可逆正規化 RevIN を入れており 表形式モデル側で差分を予測しているのと同じ非定常対策を入れている / この処理を外すと両モデルとも大きく劣化する / 学習時間はApple M系GPU（MPS）での実測値</p>
     </div>
   </div>
 </div>
@@ -299,8 +303,8 @@
 
 <!-- 11. 結果: ナウキャスト -->
 <div class="slide" data-page="11">
-  <div class="chapter">5. 追加検証</div>
-  <div class="message">外気温の追加により<span class="em">油温を用いない推定で R²=0.75</span> / 異常検知の基準線として成立</div>
+  <div class="chapter">課題① 閾値監視の代替</div>
+  <div class="message">外気温の追加で油温を用いない推定は <span class="em">ETTh2 で R²=0.75</span> / ETTh1 では <span class="warn">−1.75</span></div>
   <div class="body col">
     <div class="fig" style="max-height:46mm"><img src="../outputs/figures/fig12_nowcast.png"></div>
     <div class="cols">
@@ -328,7 +332,7 @@
 
 <!-- 12. 結果: 指標の逆転 -->
 <div class="slide" data-page="12">
-  <div class="chapter">6. 運用指標での評価</div>
+  <div class="chapter">課題② 予防保全への移行</div>
   <div class="message"><span class="warn">精度指標で最良のモデルが 警報の用途では基準線を下回る結果</span></div>
   <div class="body col">
     <div class="cols">
@@ -336,7 +340,7 @@
         <h4>24時間先の高温イベント検知（ETTh1）</h4>
         <table>
           <tr><th>モデル</th><th class="num">MAE</th><th class="num">再現率</th><th class="num">適合率</th><th class="num">F1</th></tr>
-          <tr class="highlight"><td>LightGBM（MAE最適化）</td><td class="num">1.840</td><td class="num"><span class="bad">0.314</span></td><td class="num">0.602</td><td class="num"><span class="bad">0.388</span></td></tr>
+          <tr class="highlight"><td>LightGBM（MAE最適化）</td><td class="num">1.839</td><td class="num"><span class="bad">0.314</span></td><td class="num">0.602</td><td class="num"><span class="bad">0.388</span></td></tr>
           <tr><td>Persistence</td><td class="num">1.933</td><td class="num">0.439</td><td class="num">0.491</td><td class="num">0.463</td></tr>
           <tr><td>SeasonalNaive</td><td class="num">2.967</td><td class="num">0.702</td><td class="num">0.319</td><td class="num">0.439</td></tr>
         </table>
@@ -361,8 +365,8 @@
 
 <!-- 13. 結果: 分位点回帰 -->
 <div class="slide" data-page="13">
-  <div class="chapter">6. 運用指標での評価</div>
-  <div class="message">目的関数を運用指標に合わせることで 1週間先の高温検知は<span class="em">16%→78%</span>へ</div>
+  <div class="chapter">課題② 予防保全への移行</div>
+  <div class="message">目的関数を運用指標に合わせると1週間先の高温検知は<span class="em">16%→78%</span></div>
   <div class="body col">
     <div class="fig" style="max-height:52mm"><img src="../outputs/figures/fig16_quantile_tradeoff.png"></div>
     <div class="cols">
@@ -377,7 +381,7 @@
           <tr><th>設定</th><th class="num">MAE</th><th class="num">再現率</th><th class="num">誤報率</th></tr>
           <tr><td>Persistence</td><td class="num">2.970</td><td class="num">0.160</td><td class="num">6.2%</td></tr>
           <tr><td>分位点 0.5</td><td class="num">2.494</td><td class="num">0.178</td><td class="num">2.5%</td></tr>
-          <tr><td>分位点 0.7</td><td class="num">2.781</td><td class="num">0.368</td><td class="num">8.3%</td></tr>
+          <tr><td>分位点 0.7</td><td class="num">2.781</td><td class="num">0.367</td><td class="num">8.3%</td></tr>
           <tr><td>分位点 0.8</td><td class="num">3.028</td><td class="num">0.469</td><td class="num">12.5%</td></tr>
           <tr class="highlight"><td>分位点 0.9</td><td class="num">3.997</td><td class="num">0.779</td><td class="num">33.2%</td></tr>
         </table>
@@ -415,7 +419,7 @@
       <div class="box accent">
         <h4>導入判断への含意</h4>
         <ul>
-          <li><b>「ETTで検証したから自社設備でも効く」とは言えない</b> / 計測系の仕様が結果を左右する</li>
+          <li><b>「ETTで検証したから自社設備でも同じ結果が出る」とは言えない</b> / 計測系の仕様が結果を左右する</li>
           <li>導入前に確認すべきはモデルの選択肢ではなく<b>記録分解能・サンプリング周期・欠測の扱い</b></li>
           <li>ナウキャストもETTh2で成立しETTh1で不成立 / <b>台ごとの素性確認が前提</b></li>
         </ul>
@@ -427,7 +431,7 @@
 <!-- 15. 意思決定 -->
 <div class="slide" data-page="15">
   <div class="chapter">8. 設計上の意思決定</div>
-  <div class="message">検証の妥当性を守るための<span class="em">選択</span>と コスト対効果による<span class="em">見送りの判断</span></div>
+  <div class="message">設計判断11件 / <span class="em">学習データの配り方の修正でモデルの順位が逆転</span></div>
   <div class="body">
     <div class="side" style="width:auto; flex:1">
       <div class="box accent">
@@ -451,7 +455,7 @@
           <tr><td><b>ホライズン一括の系列出力</b></td><td>ホライズンごとに独立して学習する方式を採用 / 用途で必要な指標も許容誤差も異なり 個別に最適化・評価できる形を優先した</td></tr>
           <tr><td><b>全期間統計での正規化</b></td><td>評価期間の情報が学習に混入する / 分割ごとに閉じた統計のみ使用</td></tr>
           <tr><td><b>ETTm（15分粒度）を主軸にする</b></td><td>ETThはETTmの毎正時サブサンプルで同一系列であることを確認済み / 粒度を上げても支配的な構造は変わらず計算コストが4倍になる</td></tr>
-          <tr><td><b>深層モデルのハイパラ探索</b></td><td>既定設定でPersistenceを超えられていない段階で探索に投じるより 変数追加の方が期待値が高いと判断 / 実際に効果が確認された</td></tr>
+          <tr><td><b>深層モデルのハイパラ探索</b></td><td>既定設定でPersistenceを超えられていない段階で探索に投じるより 変数追加の方が期待値が高いと判断 / 実際にMAEが改善した</td></tr>
           <tr><td><b>MAEでのモデル選定</b></td><td>運用指標で順位が逆転するため p.12 / 最終的な推奨は用途ごとに分けた</td></tr>
         </table>
       </div>
@@ -462,7 +466,7 @@
 <!-- 16. 限界 -->
 <div class="slide" data-page="16">
   <div class="chapter">9. 限界</div>
-  <div class="message">現時点で<span class="warn">言及できない事項</span></div>
+  <div class="message"><span class="warn">気象予報の誤差は未検証</span> / 本結果は上限値</div>
   <div class="body col">
     <div class="cols">
       <div class="box warnbx">
@@ -499,12 +503,12 @@
 <!-- 17. 提言 -->
 <div class="slide" data-page="17">
   <div class="chapter">10. 提言</div>
-  <div class="message">次の打ち手は<span class="em">モデル改良ではなくデータの接続</span> / 優先順位は4段階</div>
+  <div class="message">追加検証で最も誤差が減ったのは<span class="em">外気温の接続</span> / 優先順位は4段階</div>
   <div class="body col">
     <div class="flow">
       <div class="step" style="background:var(--blue-pale); border-color:#cfe0f7">
         <div class="t">最優先　気象データの接続</div>
-        <div class="d">実測と予報の両方 / 本PoCで最も効果が確認された打ち手でモデル改良より投資効率が高い / 予報誤差を織り込んだ再評価もここで行う</div>
+        <div class="d">実測と予報の両方 / 本PoCで最も誤差が減った検証でモデル改良より結果につながる / 予報誤差を織り込んだ再評価もここで行う</div>
       </div>
       <div class="arrow">→</div>
       <div class="step" style="background:var(--blue-pale); border-color:#cfe0f7">
@@ -514,7 +518,7 @@
       <div class="arrow">→</div>
       <div class="step">
         <div class="t">用途を2つに絞った第2フェーズ</div>
-        <div class="d">①異常検知の基準線＝ナウキャスト ②高温予兆の警報＝分位点回帰 / 汎用の「油温予測モデル」を作るのではなくこの2用途で運用要件を確定させる</div>
+        <div class="d">①異常検知の基準線＝ナウキャスト ②高温予兆の警報＝分位点回帰 / 汎用の「油温予測モデル」を作るのではなくこの2用途で運用条件を決める</div>
       </div>
       <div class="arrow">→</div>
       <div class="step">
@@ -541,7 +545,7 @@
       </div>
       <div class="box pale">
         <h4>投資判断としての結論</h4>
-        <p>本検証では予測精度の向上に予算を割く根拠は得られなかった<br><b>同額を気象データの接続と計測系の整備に充てる方が運用価値への転換率が高い</b>と判断する</p>
+        <p>本検証では予測精度の向上に予算を割く根拠は得られなかった<br><b>同額を気象データの接続と計測系の整備に充てる方が結果につながる</b>と判断する</p>
       </div>
     </div>
   </div>
@@ -589,10 +593,10 @@
         <h4>データ分割（expanding-window）</h4>
         <table>
           <tr><th>分割</th><th>学習期間</th><th>評価期間</th></tr>
-          <tr><td>fold1</td><td>〜2017/02/26</td><td>2017/02/27〜06/26</td></tr>
-          <tr><td>fold2</td><td>〜2017/06/26</td><td>2017/06/27〜10/26</td></tr>
-          <tr><td>fold3</td><td>〜2017/10/26</td><td>2017/10/27〜2018/02/26</td></tr>
-          <tr><td>fold4</td><td>〜2018/02/26</td><td>2018/02/27〜06/26</td></tr>
+          <tr><td>分割1</td><td>〜2017/02/26</td><td>2017/02/27〜06/26</td></tr>
+          <tr><td>分割2</td><td>〜2017/06/26</td><td>2017/06/27〜10/26</td></tr>
+          <tr><td>分割3</td><td>〜2017/10/26</td><td>2017/10/27〜2018/02/26</td></tr>
+          <tr><td>分割4</td><td>〜2018/02/26</td><td>2018/02/27〜06/26</td></tr>
         </table>
         <p style="margin-top:2mm">各分割の学習末尾2か月をearly stopping用の検証に充て 学習末尾からホライズン分のギャップを空けている</p>
       </div>
@@ -643,9 +647,9 @@
           <tr><td>Persistence</td><td class="num">0.552</td><td class="num">1.933</td><td class="num">2.970</td><td class="num">基準</td></tr>
           <tr><td>SeasonalNaive</td><td class="num">0.742</td><td class="num">2.967</td><td class="num">5.085</td><td class="num"><span class="bad">−71.2%</span></td></tr>
           <tr><td>Ridge</td><td class="num">0.621</td><td class="num">3.059</td><td class="num">5.297</td><td class="num"><span class="bad">−78.4%</span></td></tr>
-          <tr><td>PatchTST</td><td class="num">0.550</td><td class="num">1.975</td><td class="num">2.763</td><td class="num">+7.0%</td></tr>
+          <tr><td>PatchTST</td><td class="num">0.550</td><td class="num">1.974</td><td class="num">2.763</td><td class="num">+7.0%</td></tr>
           <tr><td>DLinear</td><td class="num">0.544</td><td class="num">1.868</td><td class="num">2.761</td><td class="num">+7.0%</td></tr>
-          <tr><td>LightGBM</td><td class="num">0.526</td><td class="num">1.925</td><td class="num">2.621</td><td class="num">+11.8%</td></tr>
+          <tr><td>LightGBM</td><td class="num">0.526</td><td class="num">1.924</td><td class="num">2.621</td><td class="num">+11.8%</td></tr>
           <tr class="highlight"><td>LightGBM＋外気温</td><td class="num">0.518</td><td class="num">1.851</td><td class="num">2.469</td><td class="num"><span class="good">+16.8%</span></td></tr>
         </table>
       </div>
@@ -657,7 +661,7 @@
           <tr><th>モデル</th><th class="num">1時間先</th><th class="num">24時間先</th><th class="num">1週間先</th></tr>
           <tr><td>Persistence</td><td class="num">0.929</td><td class="num">3.292</td><td class="num">5.467</td></tr>
           <tr><td>SeasonalNaive</td><td class="num">0.731</td><td class="num">4.927</td><td class="num">9.210</td></tr>
-          <tr><td>Ridge</td><td class="num">0.638</td><td class="num">7.552</td><td class="num">9.875</td></tr>
+          <tr><td>Ridge</td><td class="num">0.638</td><td class="num">7.552</td><td class="num">9.874</td></tr>
           <tr><td>LightGBM</td><td class="num">0.416</td><td class="num">3.283</td><td class="num">4.866</td></tr>
           <tr class="highlight"><td>LightGBM＋外気温</td><td class="num">0.401</td><td class="num">3.122</td><td class="num">4.810</td></tr>
         </table>
@@ -666,7 +670,7 @@
         <h4>2台の比較で見えること</h4>
         <ul>
           <li>ETTh2 の1時間先は Persistence 比 <b>+56.9%</b> / ETTh1 は <b>+6.2%</b> / 同じ手法で改善幅が9倍違う</li>
-          <li>一方 24時間先はどちらも <b>+4%前後</b>に収束 / 短期ほど計測系の差が効き 長期ほど系列の本質的な予測困難さが支配する</li>
+          <li>一方 24時間先はどちらも <b>+4%前後</b>に収束 / 短期ほど計測系の差が誤差を左右し 長期ほど系列の本質的な予測困難さが支配する</li>
           <li>Ridge と SeasonalNaive はどちらの台でも基準線を大きく下回る / 線形・周期仮定はこの系列に合わない</li>
         </ul>
       </div>
@@ -702,13 +706,13 @@
           <tr><th>設定</th><th class="num">MAE</th><th class="num">再現率</th><th class="num">適合率</th><th class="num">誤報率</th></tr>
           <tr><td colspan="5" style="background:var(--surface-alt); font-weight:700; font-size:9pt">24時間先</td></tr>
           <tr><td>Persistence</td><td class="num">1.933</td><td class="num">0.439</td><td class="num">0.491</td><td class="num">3.4%</td></tr>
-          <tr><td>分位点 0.5</td><td class="num">1.840</td><td class="num">0.314</td><td class="num">0.602</td><td class="num">1.5%</td></tr>
+          <tr><td>分位点 0.5</td><td class="num">1.839</td><td class="num">0.314</td><td class="num">0.602</td><td class="num">1.5%</td></tr>
           <tr class="highlight"><td>分位点 0.7</td><td class="num">2.022</td><td class="num">0.577</td><td class="num">0.460</td><td class="num">5.4%</td></tr>
           <tr><td>分位点 0.9</td><td class="num">2.994</td><td class="num">0.932</td><td class="num">0.271</td><td class="num">24.0%</td></tr>
           <tr><td colspan="5" style="background:var(--surface-alt); font-weight:700; font-size:9pt">1週間先</td></tr>
           <tr><td>Persistence</td><td class="num">2.970</td><td class="num">0.160</td><td class="num">0.225</td><td class="num">6.2%</td></tr>
           <tr><td>分位点 0.5</td><td class="num">2.494</td><td class="num">0.178</td><td class="num">0.340</td><td class="num">2.5%</td></tr>
-          <tr><td>分位点 0.7</td><td class="num">2.781</td><td class="num">0.368</td><td class="num">0.241</td><td class="num">8.3%</td></tr>
+          <tr><td>分位点 0.7</td><td class="num">2.781</td><td class="num">0.367</td><td class="num">0.241</td><td class="num">8.3%</td></tr>
           <tr class="highlight"><td>分位点 0.9</td><td class="num">3.997</td><td class="num">0.779</td><td class="num">0.216</td><td class="num">33.2%</td></tr>
         </table>
       </div>
