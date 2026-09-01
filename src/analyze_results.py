@@ -69,8 +69,11 @@ def event_table(preds: pd.DataFrame, dataset: str = "ETTh1") -> pd.DataFrame:
     イベント単位（連続する高温時間帯を1件と数える）の両方を出す。
     保全部門が知りたいのは後者だが、両方ないとモデルの挙動が読めない。
     """
+    from config import DATASETS
+    spd = DATASETS[dataset]["steps_per_day"]
+    step_hours = 24.0 / spd
     df, _ = clean_dataset(load_dataset(dataset))
-    thr = rolling_threshold(df[TARGET])
+    thr = rolling_threshold(df[TARGET], steps_per_day=spd)
     rows = []
     fc = preds[(preds.task == "forecast") & (preds.dataset == dataset)]
     for (h, model), g in fc.groupby(["horizon", "model"]):
@@ -85,7 +88,8 @@ def event_table(preds: pd.DataFrame, dataset: str = "ETTh1") -> pd.DataFrame:
         m = threshold_event_metrics(y_true.reset_index(drop=True),
                                     y_pred.reset_index(drop=True),
                                     thr_s.reset_index(drop=True))
-        ev = event_level_metrics(y_true, y_pred, thr_s, horizon_hours=float(h))
+        ev = event_level_metrics(y_true, y_pred, thr_s, horizon_hours=float(h),
+                                 step_hours=step_hours)
         rows.append({"horizon": h, "model": model, **m, **ev})
     return pd.DataFrame(rows)
 

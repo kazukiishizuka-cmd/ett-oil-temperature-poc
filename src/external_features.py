@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 
 from config import DATA_DIR
+from features import _to_steps
 
 EXTERNAL_DIR = DATA_DIR / "external"
 
@@ -74,8 +75,9 @@ def holiday_flags(index: pd.DatetimeIndex) -> pd.DataFrame:
 
 
 def weather_features(index: pd.DatetimeIndex, city: str = DEFAULT_CITY,
-                     horizon: int = 0, obs_lags=(0, 1, 3, 6, 12, 24),
-                     windows=(6, 24, 168), use_forecast: bool = True) -> pd.DataFrame:
+                     horizon: int = 0, steps_per_day: int = 24,
+                     obs_lag_hours=(0, 1, 3, 6, 12, 24),
+                     window_hours=(6, 24, 168), use_forecast: bool = True) -> pd.DataFrame:
     """気象データを特徴量にする。
 
     列を2種類に分ける。混ぜると「どの時刻の気象を使っているか」が追えなくなる。
@@ -86,8 +88,15 @@ def weather_features(index: pd.DatetimeIndex, city: str = DEFAULT_CITY,
 
     horizon=0（ナウキャスト）では対象時刻＝起点なので wx_obs_*_lag0 がそれに当たる。
     課題文の「t=Tの油温を予測する際には t=Tでの特徴量を使用して良い」に対応する。
+
+    ラグ・窓・差分・EWMはすべて時間で指定し、データ粒度に応じて行数へ換算する
+    （horizon は呼び出し側で行数に換算済みの値を受け取る）。
     """
     w = load_weather(city).reindex(index).interpolate(method="time", limit_direction="both")
+    obs_lags = _to_steps(obs_lag_hours, steps_per_day)
+    windows = _to_steps(window_hours, steps_per_day)
+    step_1h, step_24h = _to_steps((1,), steps_per_day)[0], _to_steps((24,), steps_per_day)[0]
+    ewm_spans = _to_steps((6, 24, 72, 168), steps_per_day)
     parts = []
 
     # --- 起点までの実測 ---
@@ -100,8 +109,8 @@ def weather_features(index: pd.DatetimeIndex, city: str = DEFAULT_CITY,
             if col == "temperature_2m":
                 d[f"wx_obs_{col}_rmin{win}"] = r.min()
                 d[f"wx_obs_{col}_rmax{win}"] = r.max()
-        d[f"wx_obs_{col}_diff1"] = s.diff(1)
-        d[f"wx_obs_{col}_diff24"] = s.diff(24)
+        d[f"wx_obs_{col}_diff1"] = s.diff(step_1h)
+        d[f"wx_obs_{col}_diff24"] = s.diff(step_24h)
         parts.append(pd.DataFrame(d, index=index))
 
     t = w["temperature_2m"]
@@ -109,8 +118,8 @@ def weather_features(index: pd.DatetimeIndex, city: str = DEFAULT_CITY,
         # 冷却の効きやすさ（風速×気温差の代理）
         "wx_obs_cooling_proxy": w["wind_speed_10m"] * (30.0 - t),
         # 熱の蓄積（気温の指数移動平均を時定数違いで）
-        **{f"wx_obs_temp_ewm{span}": t.ewm(span=span, min_periods=span // 4).mean()
-           for span in (6, 24, 72, 168)},
+        **{f"wx_obs_temp_ewm{span}": t.ewm(span=span, min_periods=max(1, span // 4)).mean()
+           for span in ewm_spans},
     }, index=index))
 
     # --- 予測対象時刻の気象（予報の代理） ---

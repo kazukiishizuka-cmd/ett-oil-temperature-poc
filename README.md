@@ -32,9 +32,10 @@ Python 3.9 / LightGBM 4.6 / PyTorch 2.8 で検証。深層モデルは Apple Sil
 ## 再現手順
 
 本検証の対象は **ETTh1 / ETTh2**（1時間粒度）。
-ETTm1 / ETTm2（15分粒度）も同じコマンドで動く。ラグ・移動窓・周期・入力系列長はすべて時間で指定し、
-データ粒度に応じて行数へ換算しているため、`--datasets ETTm1` としても「24時間先」は24時間先を意味する。
-ただし掲載している結果は ETTh1 / ETTh2 のもの。
+ETTm1 / ETTm2（15分粒度）も同じコマンドで動く。予測ホライズン・ラグ・移動窓・周期・入力系列長・
+外部気象の特徴量・高温閾値の窓・イベントのリードタイムはすべて時間または日数で指定し、
+データ粒度に応じて行数へ換算しているため、`--datasets ETTm1` としても「24時間先」は24時間先、
+「直近30日の95パーセンタイル」は30日を意味する。ただし掲載している結果は ETTh1 / ETTh2 のもの。
 
 ```bash
 # 1. EDA（図7枚とデータ整合性チェック）
@@ -61,6 +62,9 @@ PYTHONPATH=src .venv/bin/python src/analyze_results.py
 
 # 7. 報告スライドのPDF化（要 Google Chrome）
 bash slides/build_pdf.sh
+
+# 粒度換算の回帰テスト（ETTm で24時間ラグが96行になることなどを確認）
+PYTHONPATH=src .venv/bin/python src/test_granularity.py
 ```
 
 ## リポジトリ構成
@@ -84,6 +88,7 @@ bash slides/build_pdf.sh
 │   ├── run_quantile.py        分位点回帰の検証
 │   ├── analyze_results.py     結果の統合・集計・作図
 │   ├── eda.py                 EDA図の生成
+│   ├── test_granularity.py    粒度換算の回帰テスト
 │   └── plotting.py            図の共通スタイル
 ├── outputs/
 │   ├── figures/               図17枚（スライドのボディにそのまま使用）

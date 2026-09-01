@@ -32,7 +32,7 @@ def run(dataset: str = "ETTh1", horizons=(24, 168), use_external: bool = True) -
     base_X = build_forecast_features(df, steps_per_day=DATASETS[dataset]["steps_per_day"])
     holidays = holiday_flags(df.index) if use_external else None
     steps_per_hour = DATASETS[dataset]["steps_per_day"] / 24.0
-    thr_series = rolling_threshold(ot)
+    thr_series = rolling_threshold(ot, steps_per_day=DATASETS[dataset]["steps_per_day"])
     folds = expanding_folds(df.index)
     rows = []
 
@@ -42,7 +42,8 @@ def run(dataset: str = "ETTh1", horizons=(24, 168), use_external: bool = True) -
         y_delta = y_level - ot
         if use_external:
             X_all = pd.concat([base_X,
-                               weather_features(df.index, city=DEFAULT_CITY, horizon=h_steps),
+                               weather_features(df.index, city=DEFAULT_CITY, horizon=h_steps,
+                                                steps_per_day=DATASETS[dataset]["steps_per_day"]),
                                holidays], axis=1)
         else:
             X_all = base_X

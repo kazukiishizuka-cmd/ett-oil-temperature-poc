@@ -20,16 +20,19 @@ def regression_metrics(y_true: pd.Series, y_pred: pd.Series) -> dict:
     }
 
 
-def rolling_threshold(ot: pd.Series, window: int = 720, q: float = 0.95,
-                      min_periods: int = 168) -> pd.Series:
+def rolling_threshold(ot: pd.Series, window_days: int = 30, q: float = 0.95,
+                      min_days: int = 7, steps_per_day: int = 24) -> pd.Series:
     """「直近の平常水準から見て高温」と言える境界を、時点ごとに引く。
 
     固定閾値は使えない。ETTh1は2年で水準が20℃近く下がっており、
     学習期間の絶対値で線を引くと評価期間で一度も超えないためである
     （実際に最初の設計では高温イベントが0件になった）。
     窓は過去30日ぶんで、時点tまでの観測しか使わないので運用でもそのまま計算できる。
+    窓は日数で指定し、データ粒度に応じて行数へ換算する
+    （行数で固定すると ETTm では30日のつもりが7.5日になる）。
     """
-    return ot.rolling(window, min_periods=min_periods).quantile(q)
+    return ot.rolling(window_days * steps_per_day,
+                      min_periods=min_days * steps_per_day).quantile(q)
 
 
 def threshold_event_metrics(y_true: pd.Series, y_pred: pd.Series, threshold) -> dict:
@@ -63,6 +66,7 @@ def threshold_event_metrics(y_true: pd.Series, y_pred: pd.Series, threshold) -> 
 
 def event_level_metrics(y_true: pd.Series, y_pred: pd.Series, threshold,
                         horizon_hours: float, step_hours: float = 1.0) -> dict:
+    # step_hours は1ステップの実時間。ETTm（15分刻み）では 0.25 を渡す必要がある
     """連続する高温時間帯を1つの設備イベントとして数え直す。
 
     時刻単位の再現率は「高温だった時間の何割に警報を出せたか」を測る。

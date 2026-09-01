@@ -91,7 +91,8 @@ def run_task(dataset: str, task: str, horizons=None, save_predictions: bool = Tr
             # 予報として使う列は予測対象時刻 t+h の値を起点 t の行へ割り当てる必要がある。
             X_all = pd.concat([
                 base_X,
-                weather_features(df.index, city=external_city, horizon=h_steps),
+                weather_features(df.index, city=external_city, horizon=h_steps,
+                                 steps_per_day=DATASETS[dataset]["steps_per_day"]),
                 holidays,
             ], axis=1)
         else:
