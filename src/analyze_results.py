@@ -111,7 +111,7 @@ def fig_model_comparison(metrics: pd.DataFrame) -> None:
     ax.set_ylabel("MAE（℃, 4分割検証の平均）")
     ax.legend(ncol=4, loc="upper left", fontsize=8.5, columnspacing=1.2, handlelength=1.4)
     ax.margins(y=0.16)
-    fig.suptitle("学習ありで基準を明確に上回るのは1週間先だけ、24時間先は横並び", x=0.01, ha="left", fontsize=14)
+    fig.suptitle("学習ありで基準を明確に上回るのは1週間先だけ / 24時間先は横並び", x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig08_model_comparison.png")
 
@@ -140,7 +140,7 @@ def fig_skill_score(metrics: pd.DataFrame) -> None:
     ax.set_xticks(x); ax.set_xticklabels([HORIZON_LABEL[h] for h in horizons])
     ax.set_ylabel("Persistence比の改善率（%）")
     ax.legend(ncol=3, fontsize=9)
-    fig.suptitle("改善幅は1週間先で+12%、24時間先はほぼゼロ", x=0.01, ha="left", fontsize=14)
+    fig.suptitle("改善幅は1週間先で+12% / 24時間先はほぼゼロ", x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig09_skill_score.png")
 
@@ -169,7 +169,7 @@ def fig_forecast_example(preds: pd.DataFrame) -> None:
         ax.set_title(HORIZON_LABEL[h], loc="left", fontsize=12)
         ax.legend(ncol=3, loc="upper left", fontsize=9)
     axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
-    fig.suptitle("予測は日内の山谷に追随するが、水準の急変には遅れる（2018年4月）", x=0.01, ha="left", fontsize=14)
+    fig.suptitle("予測は日内の山谷に追随するが水準の急変には遅れる / 2018年4月", x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig10_forecast_example.png")
 
@@ -190,7 +190,7 @@ def fig_fold_stability(metrics: pd.DataFrame) -> None:
         ax.set_title(HORIZON_LABEL[h], loc="left")
         ax.set_ylabel("MAE（℃）")
     axes[0].legend(fontsize=8, ncol=2)
-    fig.suptitle("順位は4分割すべてで安定、水準は季節で2倍以上動く", x=0.01, ha="left", fontsize=14)
+    fig.suptitle("順位は4分割すべてで安定 / 水準は季節で2倍以上動く", x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig11_fold_stability.png")
 
@@ -236,7 +236,7 @@ def fig_nowcast(preds: pd.DataFrame, metrics: pd.DataFrame) -> None:
     axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%m-%d"))
     axes[1].set_title("ETTh2 test期間の推定値", loc="left", fontsize=11)
 
-    fig.suptitle("外気温を足すとETTh2の油温推定はMAE 3.2℃、平均予測の3分の1になる",
+    fig.suptitle("外気温を足すとETTh2の油温推定はMAE 3.2℃ / 平均予測の3分の1",
                  x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig12_nowcast.png")
@@ -258,7 +258,7 @@ def fig_event_detection(events: pd.DataFrame) -> None:
         ax.set_title(HORIZON_LABEL[h], loc="left")
     axes[0].set_ylabel("スコア")
     axes[0].legend(fontsize=9)
-    fig.suptitle("直近30日の上位5%を超える高温を、1時間先なら約9割捉えられる", x=0.01, ha="left", fontsize=14)
+    fig.suptitle("直近30日の上位5%を超える高温を1時間先なら約9割捉えられる", x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig13_event_detection.png")
 
@@ -291,7 +291,7 @@ def fig_importance() -> None:
         ax.set_xlabel("分割回数")
         ax.set_title(f"{HORIZON_LABEL[h]}の予測", loc="left")
         ax.grid(axis="x")
-    fig.suptitle("上位を占めるのはOT自身の履歴と移動統計、負荷変数は下位に沈む", x=0.01, ha="left", fontsize=14)
+    fig.suptitle("上位を占めるのはOT自身の履歴と移動統計 / 負荷変数は下位に沈む", x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig14_importance.png")
 
@@ -339,7 +339,7 @@ def fig_weather_relation() -> None:
     ax.set_xlabel("OTとの相関の絶対値（ETTh2）")
     ax.axvline(0.22, color=BAD, ls="--", lw=1.2)
     ax.text(0.23, 0.5, "データ内の負荷変数の上限", color=BAD, fontsize=8.5, va="bottom")
-    ax.set_title("データに入っていた変数と、入っていなかった変数", loc="left", fontsize=11)
+    ax.set_title("データに入っていた変数と入っていなかった変数", loc="left", fontsize=11)
     ax.grid(axis="x")
 
     # 下段: 時系列の重ね描き。単位はどちらも℃なので1つの軸に載せる
@@ -359,7 +359,7 @@ def fig_weather_relation() -> None:
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
     ax.legend(ncol=3, loc="upper right", fontsize=9)
 
-    fig.suptitle("油温を最も説明する変数は外気温（r=0.96）で、これはデータに入っていなかった",
+    fig.suptitle("油温を最も説明する変数は外気温 r=0.96 / これはデータに入っていなかった",
                  x=0.01, ha="left", fontsize=14)
     save(fig, FIGURE_DIR / "fig15_weather_relation.png")
 
@@ -458,7 +458,7 @@ def fig_dataset_comparison(metrics: pd.DataFrame) -> None:
     ax.set_xticks(x); ax.set_xticklabels([HORIZON_LABEL[h] for h in horizons])
     ax.set_ylabel("Persistence比の改善率（%）")
     ax.legend(title="変圧器")
-    fig.suptitle("同じ手法でも1時間先の改善幅は+6%と+57%、1台の検証では判断できない",
+    fig.suptitle("同じ手法でも1時間先の改善幅は+6%と+57% / 1台の検証では判断できない",
                  x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig17_dataset_comparison.png")

@@ -50,7 +50,7 @@ def fig_ot_timeline() -> None:
                          color=INK_SECONDARY, ha="center", va="bottom", fontsize=10)
     axes[1].xaxis.set_major_locator(mdates.MonthLocator(interval=3))
     axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m"))
-    fig.suptitle("ETTh1は夏のピークが1年で36℃→21℃に低下、ETTh2は同水準を維持", x=0.01, ha="left", fontsize=14)
+    fig.suptitle("ETTh1は夏のピークが1年で36℃→21℃に低下 / ETTh2は同水準を維持", x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig01_ot_timeline.png")
 
@@ -69,7 +69,7 @@ def fig_yearly_shift() -> None:
         ax.set_ylabel("月平均 油温 OT")
         ax.set_title(name, loc="left")
         ax.legend(title="年", loc="upper left")
-    fig.suptitle("ETTh1は同月比で毎年 5〜15℃低下、ETTh2は年による差がほぼない", x=0.01, ha="left", fontsize=14)
+    fig.suptitle("ETTh1は同月比で毎年 5〜15℃低下 / ETTh2は年による差がほぼない", x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig02_yearly_shift.png")
 
@@ -134,7 +134,7 @@ def fig_seasonality() -> None:
     axes[1].set_title("曜日パターン", loc="left")
     axes[1].axhline(0, color=GRID, lw=1)
     axes[1].legend()
-    fig.suptitle("日内変動は数℃規模で明確、曜日効果は1℃未満", x=0.01, ha="left", fontsize=14)
+    fig.suptitle("日内変動は数℃規模で明確 / 曜日効果は1℃未満", x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig05_seasonality.png")
 
@@ -154,7 +154,7 @@ def fig_acf() -> None:
     ax.set_ylabel("自己相関")
     ax.set_ylim(0.6, 1.005)
     ax.legend()
-    fig.suptitle("1時間前との相関0.994、1週間前でも0.83〜0.87＝自己履歴が主要な情報源", x=0.01, ha="left", fontsize=14)
+    fig.suptitle("1時間前との相関0.994 / 1週間前でも0.83〜0.87 ＝ 自己履歴が主要な情報源", x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig06_acf.png")
 
@@ -179,7 +179,7 @@ def fig_load_vs_ot() -> None:
     axes[1].set_ylabel("油温 OT")
     axes[1].set_title(f"散布図（train期間, r={sub['HULL'].corr(sub['OT']):.2f}）", loc="left")
     axes[1].grid(axis="both")
-    fig.suptitle("同時刻の負荷はOTの水準を最大r=0.22しか説明せず、変化量では相関が消える", x=0.01, ha="left", fontsize=14)
+    fig.suptitle("同時刻の負荷はOTの水準を最大r=0.22しか説明せず 変化量では相関が消える", x=0.01, ha="left", fontsize=14)
     fig.tight_layout()
     save(fig, FIGURE_DIR / "fig07_load_vs_ot.png")
 
