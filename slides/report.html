@@ -46,7 +46,7 @@
     <div class="cols">
       <div class="box accent">
         <h4>基準線が強い理由</h4>
-        <p>油温は自己相関がきわめて高い / 1時間前との相関 0.994<br>直近値をそのまま返す単純な手法が強い基準線になる<br>ここを起点にするとモデルの巧拙で得られる上積みは小さい</p>
+        <p>油温は自己相関がきわめて高い / 1時間前との相関 0.994<br>直近値をそのまま返す単純な手法が強い基準線になる<br>ここを起点にするとモデルの巧拙で得られる上積みは小さい<br>そこで全モデルをPersistence比で評価し 差分ターゲット・外部データ・分位点損失で上積みを取った / 設計判断の一覧は p.17</p>
       </div>
       <div class="box okbx">
         <h4>クライアントの課題との対応</h4>
@@ -213,6 +213,7 @@
       <div class="step"><div class="t">評価</div><div class="d">MAE / RMSE / R²<br>＋高温イベントの検知性能</div></div>
     </div>
   </div>
+  <div class="footnote">この5工程それぞれで採った選択と あえて見送った選択の一覧は p.17</div>
 </div>
 
 <!-- 8. 結果: モデル比較 -->
@@ -303,7 +304,7 @@
 
 <!-- 11. 結果: ナウキャスト -->
 <div class="slide" data-page="11">
-  <div class="chapter">課題① 閾値監視の代替</div>
+  <div class="chapter">6. 課題① 閾値監視の代替</div>
   <div class="message">負荷＋外部気象による正常値推定候補は <span class="em">ETTh2でR²=0.854</span> / 異常検知性能は未検証</div>
   <div class="body col">
     <div class="fig" style="max-height:46mm"><img src="../outputs/figures/fig12_nowcast.png"></div>
@@ -332,7 +333,7 @@
 
 <!-- 12. 結果: 指標の逆転 -->
 <div class="slide" data-page="12">
-  <div class="chapter">課題② 予防保全への移行</div>
+  <div class="chapter">6. 課題② 予防保全への移行</div>
   <div class="message">MAE最適化は<span class="warn">閾値超過を捉えにくい</span> / 外部気象の追加で解消</div>
   <div class="body col">
     <div class="cols">
@@ -366,7 +367,7 @@
 
 <!-- 13. 結果: 分位点回帰 -->
 <div class="slide" data-page="13">
-  <div class="chapter">課題② 予防保全への移行</div>
+  <div class="chapter">6. 課題② 予防保全への移行</div>
   <div class="message">評価期間上で分位点を変えると<span class="em">相対高温の再現率16%〜81%</span> / 未見性能ではない</div>
   <div class="body col">
     <div class="fig" style="max-height:52mm"><img src="../outputs/figures/fig16_quantile_tradeoff.png"></div>
@@ -399,7 +400,7 @@
 
 <!-- 14. 結果: イベント単位の検知 -->
 <div class="slide" data-page="14">
-  <div class="chapter">課題② 予防保全への移行</div>
+  <div class="chapter">6. 課題② 予防保全への移行</div>
   <div class="message">起点軸上の相対高温区間は<span class="em">184区間中93区間を分類</span> / 実イベント警報ではない</div>
   <div class="body col">
     <div class="box accent">
@@ -441,8 +442,43 @@
   <div class="footnote">相対高温＝予測起点までの直近30日の95パーセンタイルを対象値が超えること / 連続時間を1区間として集計 / 予測猶予＝予測起点から対象時刻まで / 実設備の危険閾値・イベント開始前警報・通知抑制は未評価</div>
 </div>
 
-<!-- 14. 結果: 台差 -->
+<!-- 感度分析 -->
 <div class="slide" data-page="15">
+  <div class="chapter">6. 課題② 予防保全への移行</div>
+  <div class="message">実際の予報誤差でも改善幅は<span class="em">25〜32%</span>残る</div>
+  <div class="body col">
+    <div class="fig" style="max-height:62mm"><img src="../outputs/figures/fig18_forecast_noise.png"></div>
+    <div class="cols">
+      <div class="box accent">
+        <h4>何を測ったか</h4>
+        <p>前ページまでの改善幅は対象時刻の気象を完全に知るoracle条件で測っている / 実運用で入るのは予報なので その誤差を模擬した<br>気温予報に標準偏差1〜3℃の正規ノイズを与え 改善幅がどこまで残るかを見る<br><b>実際の気温予報の誤差は24時間先で1〜2℃・1週間先で2〜3℃程度</b></p>
+      </div>
+      <div class="box">
+        <h4>Persistence比の改善率（ETTh1）</h4>
+        <table>
+          <tr><th>予報誤差</th><th class="num">24時間先</th><th class="num">1週間先</th></tr>
+          <tr><td>±0℃（oracle）</td><td class="num">+31.8%</td><td class="num">+35.5%</td></tr>
+          <tr><td colspan="3" style="font-size:8.5pt; color:var(--ink-3); border-bottom:none; padding-top:0">↓ ±0℃を100としたときの残存率</td></tr>
+          <tr class="highlight"><td>±1℃</td><td class="num">+30.1%（95%）</td><td class="num">+35.4%（100%）</td></tr>
+          <tr class="highlight"><td>±2℃</td><td class="num">+27.5%（87%）</td><td class="num">+32.0%（90%）</td></tr>
+          <tr><td>±3℃</td><td class="num">+25.1%（79%）</td><td class="num">+30.5%（86%）</td></tr>
+        </table>
+      </div>
+      <div class="box warnbx">
+        <h4>この模擬の限界</h4>
+        <ul>
+          <li>誤差は時刻ごとに独立な正規ノイズ / 実際の予報誤差は<b>系統的で自己相関を持つ</b>ため楽観側に振れる可能性</li>
+          <li>ノイズを与えたのは気温のみ / 残る7変数と休日は完全既知のまま</li>
+          <li>過去の実予報データによる検証は未実施</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footnote">乱数シードは42に固定 / 各誤差水準で4分割検証を回した平均 / ±0℃の値が本編の+32.3%とわずかに異なるのは LightGBM の bagging・feature sampling による実行差 / 誤差の影響は同一実行内での比較で読む</div>
+</div>
+
+<!-- 14. 結果: 台差 -->
+<div class="slide" data-page="16">
   <div class="chapter">7. 一般化可能性</div>
   <div class="message">同一手法でも2台で改善幅は<span class="warn">+8%と+58%</span> / 1台の検証では判断困難</div>
   <div class="body col">
@@ -474,7 +510,7 @@
 </div>
 
 <!-- 15. 意思決定 -->
-<div class="slide" data-page="16">
+<div class="slide" data-page="17">
   <div class="chapter">8. 設計上の意思決定</div>
   <div class="message"><span class="em">採った選択6件</span>と<span class="em">見送った選択5件</span></div>
   <div class="body">
@@ -509,14 +545,14 @@
 </div>
 
 <!-- 16. 限界 -->
-<div class="slide" data-page="17">
+<div class="slide" data-page="18">
   <div class="chapter">9. 限界</div>
   <div class="message">現時点で<span class="warn">言及できない事項</span></div>
   <div class="body col">
     <div class="cols">
       <div class="box warnbx">
         <h4>① 実際の気象予報による検証はしていない</h4>
-        <p>将来予測では<b>対象時刻 t+h の気象8変数が正確に分かる前提</b>で評価した / 実運用では気象予報が入る<br>改善幅の大半はこの前提に依存する（外部特徴量なしでは24時間先 +0.5%）ため <b>本結果は完全情報条件の上限値</b><br><b>検証方法：</b>予報履歴を入手するか 予報誤差を模擬したノイズを加えて感度を測る</p>
+        <p>将来予測では<b>対象時刻 t+h の気象8変数が正確に分かる前提</b>で評価した / 実運用では気象予報が入る<br>改善幅の大半はこの前提に依存する（外部特徴量なしでは24時間先 +0.5%）ため <b>本結果は完全情報条件の上限値</b><br><b>検証方法：</b>誤差を模擬したノイズによる感度は p.15 で測定済み（±3℃でも改善幅は+25〜31%残る）/ 未実施なのは実際の予報履歴による検証</p>
       </div>
       <div class="box warnbx">
         <h4>② 観測地点は推定値</h4>
@@ -530,7 +566,7 @@
     <div class="cols">
       <div class="box warnbx">
         <h4>④ 2台のみの検証</h4>
-        <p>p.15の通り結論が台によって割れる / 母数2台では「どちらが一般的か」を判断できない</p>
+        <p>p.16の通り結論が台によって割れる / 母数2台では「どちらが一般的か」を判断できない</p>
       </div>
       <div class="box warnbx">
         <h4>⑤ ETTh1のレベルシフトの原因が未特定</h4>
@@ -558,41 +594,6 @@
   </div>
 </div>
 
-<!-- 感度分析 -->
-<div class="slide" data-page="18">
-  <div class="chapter">課題② 予防保全への移行</div>
-  <div class="message">実際の予報誤差でも改善幅は<span class="em">25〜32%</span>残る</div>
-  <div class="body col">
-    <div class="fig" style="max-height:62mm"><img src="../outputs/figures/fig18_forecast_noise.png"></div>
-    <div class="cols">
-      <div class="box accent">
-        <h4>何を測ったか</h4>
-        <p>前ページまでの改善幅は対象時刻の気象を完全に知るoracle条件で測っている / 実運用で入るのは予報なので その誤差を模擬した<br>気温予報に標準偏差1〜3℃の正規ノイズを与え 改善幅がどこまで残るかを見る<br><b>実際の気温予報の誤差は24時間先で1〜2℃・1週間先で2〜3℃程度</b></p>
-      </div>
-      <div class="box">
-        <h4>Persistence比の改善率（ETTh1）</h4>
-        <table>
-          <tr><th>予報誤差</th><th class="num">24時間先</th><th class="num">1週間先</th></tr>
-          <tr><td>±0℃（oracle）</td><td class="num">+31.8%</td><td class="num">+35.5%</td></tr>
-          <tr><td colspan="3" style="font-size:8.5pt; color:var(--ink-3); border-bottom:none; padding-top:0">↓ ±0℃を100としたときの残存率</td></tr>
-          <tr class="highlight"><td>±1℃</td><td class="num">+30.1%（95%）</td><td class="num">+35.4%（100%）</td></tr>
-          <tr class="highlight"><td>±2℃</td><td class="num">+27.5%（87%）</td><td class="num">+32.0%（90%）</td></tr>
-          <tr><td>±3℃</td><td class="num">+25.1%（79%）</td><td class="num">+30.5%（86%）</td></tr>
-        </table>
-      </div>
-      <div class="box warnbx">
-        <h4>この模擬の限界</h4>
-        <ul>
-          <li>誤差は時刻ごとに独立な正規ノイズ / 実際の予報誤差は<b>系統的で自己相関を持つ</b>ため楽観側に振れる可能性</li>
-          <li>ノイズを与えたのは気温のみ / 残る7変数と休日は完全既知のまま</li>
-          <li>過去の実予報データによる検証は未実施</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-  <div class="footnote">乱数シードは42に固定 / 各誤差水準で4分割検証を回した平均 / ±0℃の値が本編の+32.3%とわずかに異なるのは LightGBM の bagging・feature sampling による実行差 / 誤差の影響は同一実行内での比較で読む</div>
-</div>
-
 <!-- 17. 提言 -->
 <div class="slide" data-page="19">
   <div class="chapter">10. 提言</div>
@@ -606,7 +607,7 @@
       <div class="arrow">→</div>
       <div class="step" style="background:var(--blue-pale); border-color:#cfe0f7">
         <div class="t">次点　計測系の素性確認</div>
-        <div class="d">記録分解能・サンプリング周期・欠測処理の仕様および機器の改修履歴 / p.15の通り結果を左右する / モデル構築より前に確認すべき項目</div>
+        <div class="d">記録分解能・サンプリング周期・欠測処理の仕様および機器の改修履歴 / p.16の通り結果を左右する / モデル構築より前に確認すべき項目</div>
       </div>
       <div class="arrow">→</div>
       <div class="step">
